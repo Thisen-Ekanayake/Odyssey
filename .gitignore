@@ -1,0 +1,8 @@
+airsim_venv/
+Blocks/
+
+*.pyc
+*.md
+*.log
+*.zip
+*.sh
