@@ -1,0 +1,17 @@
+# Adds the missing Vulkan loader to the AirSim runtime image.
+# The NVIDIA ICD + driver libs are injected at run time by nvidia-container-toolkit;
+# only the loader (libvulkan1) is missing from the base image.
+FROM airsim_binary:10.0-devel-ubuntu18.04
+
+USER root
+
+# CUDA 10.0 / bionic images ship expired NVIDIA apt repos + GPG keys that break
+# `apt-get update`. Remove them; we only need the Ubuntu bionic repos for libvulkan1.
+RUN rm -f /etc/apt/sources.list.d/cuda*.list \
+          /etc/apt/sources.list.d/nvidia*.list \
+          /etc/apt/sources.list.d/*ml*.list 2>/dev/null; \
+    apt-get update && \
+    apt-get install -y --no-install-recommends libvulkan1 vulkan-utils && \
+    rm -rf /var/lib/apt/lists/*
+
+USER airsim_user
