@@ -1,0 +1,49 @@
+{
+  "SeeDocsAt": "https://github.com/Microsoft/AirSim/blob/main/docs/settings_json.md",
+  "SettingsVersion": 1.2,
+  "SimMode": "Multirotor",
+  "ClockSpeed": 1.0,
+  "ViewMode": "SpringArmChase",
+  "Vehicles": {
+    "Drone1": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "AutoCreate": true,
+      "X": 0, "Y": 0, "Z": 0, "Yaw": 0
+    },
+    "Drone2": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "AutoCreate": true,
+      "X": 0, "Y": 4, "Z": 0, "Yaw": 0
+    },
+    "Drone3": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "AutoCreate": true,
+      "X": 0, "Y": 8, "Z": 0, "Yaw": 0
+    },
+    "Drone4": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "AutoCreate": true,
+      "X": 0, "Y": 12, "Z": 0, "Yaw": 0
+    },
+    "Drone5": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "AutoCreate": true,
+      "X": 0, "Y": 16, "Z": 0, "Yaw": 0
+    }
+  }
+}
