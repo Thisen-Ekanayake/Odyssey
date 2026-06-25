@@ -11,7 +11,19 @@
       "EnableCollisions": true,
       "AllowAPIAlways": true,
       "AutoCreate": true,
-      "X": 0, "Y": 0, "Z": 0, "Yaw": 0
+      "X": 0, "Y": 0, "Z": 0, "Yaw": 0,
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 100000,
+          "X": 0, "Y": 0, "Z": -0.1,
+          "DrawDebugPoints": false,
+          "DataFrame": "VehicleInertialFrame"
+        }
+      }
     },
     "Drone2": {
       "VehicleType": "SimpleFlight",
