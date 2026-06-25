@@ -41,6 +41,8 @@ N_REVS = 2              # how many revolutions to fly
 DIRECTION = +1          # +1 = counter-clockwise (seen from above), -1 = clockwise
 DT = 0.1                # control tick (s); ~1/DT commands per drone per second
 FACE_CENTER = True      # yaw each drone to look at the ring center while orbiting
+KP_RADIAL = 1.0         # P-gain pulling each drone back onto the ring radius (1/s)
+VEL_CMD_DURATION = 0.25 # how long each velocity command persists (s); > DT for continuity
 
 
 def world_to_local(name, wx, wy):
@@ -67,9 +69,9 @@ def main():
 
     n = len(DRONES)
     slot = 2.0 * math.pi / n                 # angular spacing between drones (72 deg for 5)
-    omega = DIRECTION * 2.0 * math.pi / REV_PERIOD   # ring angular velocity (rad/s)
-    # tangential speed each drone needs (v = omega*R), with margin to also correct drift
-    speed = abs(omega) * RADIUS * 1.6
+    omega = 2.0 * math.pi / REV_PERIOD       # ring angular rate magnitude (rad/s)
+    v_tan = DIRECTION * omega * RADIUS        # tangential speed for the orbit (signed, m/s)
+    form_speed = omega * RADIUS * 1.5         # speed used only to fly into the initial ring
 
     # Arm + take control of every drone.
     for d in DRONES:
@@ -86,7 +88,7 @@ def main():
     for i, d in enumerate(DRONES):
         lx, ly, yaw = ring_target(d, i * slot)
         futures.append(client.moveToPositionAsync(
-            lx, ly, ALTITUDE, speed,
+            lx, ly, ALTITUDE, form_speed,
             drivetrain=airsim.DrivetrainType.MaxDegreeOfFreedom,
             yaw_mode=airsim.YawMode(False, yaw),
             vehicle_name=d))
@@ -95,24 +97,44 @@ def main():
     print("Holding ring 2s...")
     time.sleep(2.0)
 
-    # Orbit: advance the whole ring's phase over time and re-target every tick.
-    # Re-targeting the exact circle point each tick self-corrects integration drift.
+    # Orbit with closed-loop VELOCITY control (smooth + stable). Each tick we read
+    # each drone's actual world position and command a velocity made of:
+    #   - a tangential component (v_tan) that drives the rotation around the center, and
+    #   - a radial P-correction that gently pulls it back onto the ring radius.
+    # moveByVelocityZAsync holds altitude, so motion stays in-plane and continuous --
+    # no stop-start re-targeting, which is what made the drones lurch and tilt before.
     print(f"Orbiting {N_REVS} rev(s), {REV_PERIOD:.0f}s each, "
           f"{'CCW' if DIRECTION > 0 else 'CW'}...")
+    cx, cy = CENTER
     duration = N_REVS * REV_PERIOD
     t = 0.0
     while t < duration:
-        phase = omega * t
-        for i, d in enumerate(DRONES):
-            lx, ly, yaw = ring_target(d, phase + i * slot)
+        for d in DRONES:
+            p = client.getMultirotorState(vehicle_name=d).kinematics_estimated.position
+            sx, sy = SPAWNS[d]
+            wx, wy = p.x_val + sx, p.y_val + sy        # actual world position
+            rx, ry = wx - cx, wy - cy
+            rad = math.hypot(rx, ry) or 1e-3
+            urx, ury = rx / rad, ry / rad              # radial unit (outward)
+            utx, uty = -ury, urx                       # tangential unit (CCW)
+            v_rad = -KP_RADIAL * (rad - RADIUS)        # pull back toward the ring radius
+            vx = v_tan * utx + v_rad * urx             # world-frame NED velocity (x=N, y=E)
+            vy = v_tan * uty + v_rad * ury
+            yaw = math.degrees(math.atan2(cy - wy, cx - wx))   # face center
             yaw_mode = airsim.YawMode(False, yaw) if FACE_CENTER else airsim.YawMode(False, 0)
-            client.moveToPositionAsync(
-                lx, ly, ALTITUDE, speed,
+            client.moveByVelocityZAsync(
+                vx, vy, ALTITUDE, VEL_CMD_DURATION,
                 drivetrain=airsim.DrivetrainType.MaxDegreeOfFreedom,
                 yaw_mode=yaw_mode,
-                vehicle_name=d)               # fire-and-continue; next tick overrides
+                vehicle_name=d)
         time.sleep(DT)
         t += DT
+
+    # Arrest motion before landing so the drones don't drift off the ring.
+    print("Stopping...")
+    for d in DRONES:
+        client.hoverAsync(vehicle_name=d)
+    time.sleep(2.0)
 
     # Land + release.
     print("Landing...")
