@@ -27,6 +27,14 @@ ALTITUDE = -8.0   # NED: negative = up (8 m)
 SPEED = 3.0       # m/s
 UPDATE_HZ = 10    # LiDAR poll rate
 
+# Flight pattern: (label, x, y) relative offsets in NED (forward=+X, right=+Y)
+FLIGHT_PATTERN = [
+    ("forward  5 m", ( 5,  0)),
+    ("backward 10 m", (-10,  0)),
+    ("left     5 m", ( 0, -5)),
+    ("right    5 m", ( 0, 10)),
+]
+
 
 def colorize_by_height(points: np.ndarray) -> np.ndarray:
     """Blue (high altitude / negative NED-Z) → red (ground / positive NED-Z)."""
@@ -89,9 +97,14 @@ class LidarViewer:
     # ---- background thread -----------------------------------------------
 
     def _poll_loop(self):
+        # msgpackrpc uses a Tornado IOLoop that is not thread-safe.
+        # Each thread must own its own client connection.
+        poll_client = airsim.MultirotorClient()
+        poll_client.confirmConnection()
+
         first = True
         while self._running:
-            data = self.client.getLidarData(lidar_name="LidarSensor1", vehicle_name=DRONE)
+            data = poll_client.getLidarData(lidar_name="LidarSensor1", vehicle_name=DRONE)
 
             if len(data.point_cloud) >= 3:
                 pts = np.array(data.point_cloud, dtype=np.float64).reshape(-1, 3)
@@ -120,6 +133,23 @@ class LidarViewer:
         gui.Application.instance.run()
 
 
+def flight_pattern(client: airsim.MultirotorClient, viewer: "LidarViewer"):
+    """Run the movement sequence in a background thread."""
+    time.sleep(1.5)  # let viewer settle before moving
+
+    x, y = 0.0, 0.0
+    for label, (dx, dy) in FLIGHT_PATTERN:
+        if not viewer._running:
+            break
+        x += dx
+        y += dy
+        print(f"\n-> {label}  →  ({x:.0f}, {y:.0f}) m")
+        client.moveToPositionAsync(x, y, ALTITUDE, SPEED, vehicle_name=DRONE).join()
+        time.sleep(0.5)
+
+    print("\nPattern complete — hovering until window closed.")
+
+
 def main():
     client = airsim.MultirotorClient()
     client.confirmConnection()
@@ -134,6 +164,9 @@ def main():
     print(f"Hovering at {abs(ALTITUDE):.0f} m. Opening LiDAR viewer (close window to quit)...\n")
 
     viewer = LidarViewer(client)
+
+    threading.Thread(target=flight_pattern, args=(client, viewer), daemon=True).start()
+
     try:
         viewer.run()   # blocks until window is closed
     finally:
