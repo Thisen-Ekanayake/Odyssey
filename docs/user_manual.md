@@ -35,7 +35,7 @@ docker build -f Dockerfile.vk -t airsim_swarm:vk .
 
 ```bash
 cd ~/airsim_swarm
-./run_swarm.sh
+./scripts/run_swarm.sh
 ```
 
 What happens:
@@ -52,7 +52,7 @@ will simply succeed instead of timing out).
 For batch/research runs without a GUI, start it like this instead:
 
 ```bash
-HEADLESS=1 ./run_swarm.sh
+HEADLESS=1 ./scripts/run_swarm.sh
 ```
 
 The simulator renders off-screen; you still control the drones exactly the same way.
@@ -139,10 +139,10 @@ c.landAsync(vehicle_name="Drone1").join()
 
 | Symptom | Cause / Fix |
 |---|---|
-| Sim window flashes and closes instantly | Missing `-vulkan` or wrong image. Use `./run_swarm.sh` (it sets both). |
+| Sim window flashes and closes instantly | Missing `-vulkan` or wrong image. Use `./scripts/run_swarm.sh` (it sets both). |
 | `airsim_swarm:vk` not found | Build it: `docker build -f Dockerfile.vk -t airsim_swarm:vk .` |
 | Python client times out / "connection refused" | Sim not ready yet — wait ~60 s after launch, then retry. Confirm Terminal A is still running. |
-| No GUI window appears | X11/Wayland permission. Re-run `xhost +local:root`, or just use `HEADLESS=1 ./run_swarm.sh`. |
+| No GUI window appears | X11/Wayland permission. Re-run `xhost +local:root`, or just use `HEADLESS=1 ./scripts/run_swarm.sh`. |
 | `ModuleNotFoundError: airsim` | Use the venv: `./airsim_venv/bin/python`, not the system `python`. |
 | Drones collide at spawn | Spread their `X`/`Y` spawn positions in `settings.json`. |
 
@@ -155,8 +155,8 @@ card in the container) and `LogStreaming: Error` about editor-only assets.
 
 ```bash
 # Terminal A — start sim
-cd ~/airsim_swarm && ./run_swarm.sh            # GUI
-cd ~/airsim_swarm && HEADLESS=1 ./run_swarm.sh # headless
+cd ~/airsim_swarm && ./scripts/run_swarm.sh            # GUI
+cd ~/airsim_swarm && HEADLESS=1 ./scripts/run_swarm.sh # headless
 
 # Terminal B — control drones
 cd ~/airsim_swarm && ./airsim_venv/bin/python flight/swarm_demo.py

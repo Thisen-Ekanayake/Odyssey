@@ -125,19 +125,22 @@ USER airsim_user
 airsim_swarm/
 ├── Dockerfile.vk           # Builds airsim_swarm:vk
 ├── settings.json           # AirSim vehicle/sensor config (bind-mounted into container)
-├── run_swarm.sh            # Main launcher script
-├── fetch_envs.sh           # Downloads AirSim environments from GitHub releases into envs/
 ├── flight/
 │   ├── swarm_demo.py       # 3-drone line-formation demo
 │   ├── swarm_circle.py     # 5-drone ring-orbit demo
 │   ├── sensor_demo.py      # Single-drone sensor readout (camera, LiDAR, IMU, GPS, ...)
-│   └── lidar_viz.py        # Single-drone LiDAR mapping + chase-cam dual view (Open3D)
+│   ├── lidar_viz.py        # Single-drone LiDAR mapping + chase-cam dual view (Open3D)
+│   ├── detect_objects.py   # YOLO26 object detection on the drone's FPV camera
+│   └── spawn_traffic.py    # Scatters static car/prop assets for detect_objects.py to find
 ├── rl/
 │   ├── airsim_gym_env.py   # Gymnasium environment wrapper
 │   └── train_drl.py        # DRL (PPO) training entry point
 ├── docs/                   # This manual + user_manual.md
-├── scripts/                # One-time host setup scripts (setup_arch.sh, install_ubuntu.sh, ...)
-├── airsim_venv/            # Python virtualenv (airsim 1.8.1, numpy 2.2.6)
+├── scripts/                # run_swarm.sh, fetch_envs.sh, and one-time host setup scripts
+│   ├── run_swarm.sh        # Main launcher script
+│   ├── fetch_envs.sh       # Downloads AirSim environments from GitHub releases into envs/
+│   └── setup_arch.sh, install_arch.sh, setup_ubuntu.sh, install_ubuntu.sh
+├── airsim_venv/            # Python virtualenv (airsim 1.8.1, numpy 2.2.6, torch, ultralytics)
 └── envs/                   # Downloaded environment binaries (gitignored)
     ├── Blocks/LinuxNoEditor/
     ├── Africa_Savannah/LinuxNoEditor/
@@ -282,13 +285,13 @@ Environments are downloaded from the [AirSim v1.8.1 GitHub release](https://gith
 
 ```bash
 # Download the lightweight Blocks environment (~140 MB) only:
-./fetch_envs.sh Blocks
+./scripts/fetch_envs.sh Blocks
 
 # Download all available environments (~12 GB total):
-./fetch_envs.sh
+./scripts/fetch_envs.sh
 
 # Skip confirmation and keep zip archives:
-YES=1 KEEP_ZIPS=1 ./fetch_envs.sh Africa_Savannah Blocks
+YES=1 KEEP_ZIPS=1 ./scripts/fetch_envs.sh Africa_Savannah Blocks
 ```
 
 Available environments:
@@ -380,13 +383,13 @@ LiDAR sensor on each drone (`SensorType: 6`):
 cd ~/airsim_swarm
 
 # Blocks environment (default):
-./run_swarm.sh Blocks
+./scripts/run_swarm.sh Blocks
 
 # Africa Savannah:
-./run_swarm.sh Africa_Savannah
+./scripts/run_swarm.sh Africa_Savannah
 
 # Any env in a custom resolution:
-./run_swarm.sh Blocks -ResX=1920 -ResY=1080
+./scripts/run_swarm.sh Blocks -ResX=1920 -ResY=1080
 ```
 
 The script:
@@ -401,7 +404,7 @@ The UE4 window appears on `DISPLAY=:1` (XWayland). **First launch compiles shade
 No window is created; rendering goes off-screen. Useful for CI, data collection, or remote servers.
 
 ```bash
-HEADLESS=1 ./run_swarm.sh Blocks
+HEADLESS=1 ./scripts/run_swarm.sh Blocks
 ```
 
 Passes `-vulkan -RenderOffscreen -ResX=640 -ResY=480` to UE4. The API is identical — connect with the Python client the same way.
