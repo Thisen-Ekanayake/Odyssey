@@ -76,8 +76,8 @@ cat <<EOF
 
 Project setup done. Run the sim:
 
-  Terminal A:  ./run_swarm.sh                 # GUI on XWayland
-               HEADLESS=1 ./run_swarm.sh      # off-screen
+  Terminal A:  ./scripts/run_swarm.sh                 # GUI on XWayland
+               HEADLESS=1 ./scripts/run_swarm.sh      # off-screen
 
   Terminal B:  ./airsim_venv/bin/python swarm_demo.py
 EOF

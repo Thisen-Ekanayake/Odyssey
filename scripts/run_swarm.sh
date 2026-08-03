@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Launch an AirSim binary environment in the (Vulkan-fixed) container with the swarm.
-#   ./run_swarm.sh                 # default env (Africa), GUI window
-#   ./run_swarm.sh Blocks          # pick another downloaded env by name
-#   HEADLESS=1 ./run_swarm.sh      # off-screen render, control via API only
-#   ENV_NAME=AirSimNH ./run_swarm.sh   # env can also be set via the ENV_NAME variable
+#   ./scripts/run_swarm.sh                 # default env (Africa), GUI window
+#   ./scripts/run_swarm.sh Blocks          # pick another downloaded env by name
+#   HEADLESS=1 ./scripts/run_swarm.sh      # off-screen render, control via API only
+#   ENV_NAME=AirSimNH ./scripts/run_swarm.sh   # env can also be set via the ENV_NAME variable
 # Any args after the env name are passed through to the UE4 binary.
 set -euo pipefail
 
-WORKDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # repo root (this script lives in scripts/)
 IMAGE="airsim_swarm:vk"   # base airsim_binary + libvulkan1 (see Dockerfile.vk)
 SETTINGS="$WORKDIR/settings.json"
 
@@ -22,7 +22,7 @@ ENVS_DIR="$WORKDIR/envs"
 ENV_SH="$(find "$ENVS_DIR" -maxdepth 4 -name "${ENV_NAME}.sh" 2>/dev/null | head -1)"
 if [[ -z "$ENV_SH" ]]; then
   echo "ERROR: launcher '${ENV_NAME}.sh' not found under $ENVS_DIR." >&2
-  echo "Did you download/unzip the '${ENV_NAME}' environment (./fetch_envs.sh ${ENV_NAME})? Launchers present:" >&2
+  echo "Did you download/unzip the '${ENV_NAME}' environment (./scripts/fetch_envs.sh ${ENV_NAME})? Launchers present:" >&2
   find "$ENVS_DIR" -maxdepth 4 -name '*.sh' 2>/dev/null | sed 's/^/  /' >&2
   exit 1
 fi

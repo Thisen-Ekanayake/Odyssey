@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Download + extract the AirSim v1.8.1 Linux environments into this workspace.
 #
-#   ./fetch_envs.sh                 # all envs (prompts before the big download)
-#   ./fetch_envs.sh Africa_Savannah AirSimNH   # just these
-#   YES=1 ./fetch_envs.sh           # skip the confirmation prompt
-#   KEEP_ZIPS=1 ./fetch_envs.sh     # don't delete the .zip files after extracting
+#   ./scripts/fetch_envs.sh                 # all envs (prompts before the big download)
+#   ./scripts/fetch_envs.sh Africa_Savannah AirSimNH   # just these
+#   YES=1 ./scripts/fetch_envs.sh           # skip the confirmation prompt
+#   KEEP_ZIPS=1 ./scripts/fetch_envs.sh     # don't delete the .zip files after extracting
 #
 # Downloads are resumable: rerun to continue a partial/failed fetch. Each env
-# extracts to <Env>/LinuxNoEditor/<Env>.sh — run one with:  ./run_swarm.sh <Env>
+# extracts to <Env>/LinuxNoEditor/<Env>.sh — run one with:  ./scripts/run_swarm.sh <Env>
 set -euo pipefail
 
-WORKDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # repo root (this script lives in scripts/)
 BASE="https://github.com/microsoft/AirSim/releases/download/v1.8.1"
 ENVS_DIR="$WORKDIR/envs"            # all downloaded/extracted environments live here
 DL="$ENVS_DIR/_env_downloads"        # staging dir for the zips
@@ -80,4 +80,4 @@ find "$ENVS_DIR" -maxdepth 5 -name '*.sh' -path '*LinuxNoEditor*' -exec chmod +x
 find "$ENVS_DIR" -maxdepth 6 -path '*/Binaries/Linux/*' -type f ! -name '*.so' -exec chmod +x {} \; 2>/dev/null || true
 
 rmdir "$DL" 2>/dev/null || true   # remove staging dir if now empty
-echo "Done. Launch one with:  ./run_swarm.sh <Env>   e.g.  ./run_swarm.sh Africa_Savannah"
+echo "Done. Launch one with:  ./scripts/run_swarm.sh <Env>   e.g.  ./scripts/run_swarm.sh Africa_Savannah"
