@@ -4,6 +4,22 @@
   "SimMode": "Multirotor",
   "ClockSpeed": 1.0,
   "ViewMode": "SpringArmChase",
+  "CameraDefaults": {
+    "CaptureSettings": [
+      {
+        "ImageType": 0,
+        "Width": 1280,
+        "Height": 720,
+        "FOV_Degrees": 90
+      }
+    ]
+  },
+  "ExternalCameras": {
+    "ChaseCam": {
+      "X": 0, "Y": -8, "Z": -11,
+      "Pitch": -20, "Roll": 0, "Yaw": 0
+    }
+  },
   "Vehicles": {
     "Drone1": {
       "VehicleType": "SimpleFlight",
@@ -31,7 +47,19 @@
       "EnableCollisions": true,
       "AllowAPIAlways": true,
       "AutoCreate": true,
-      "X": 0, "Y": 4, "Z": 0, "Yaw": 0
+      "X": 0, "Y": 4, "Z": 0, "Yaw": 0,
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 100000,
+          "X": 0, "Y": 0, "Z": -0.1,
+          "DrawDebugPoints": false,
+          "DataFrame": "VehicleInertialFrame"
+        }
+      }
     },
     "Drone3": {
       "VehicleType": "SimpleFlight",
@@ -39,7 +67,19 @@
       "EnableCollisions": true,
       "AllowAPIAlways": true,
       "AutoCreate": true,
-      "X": 0, "Y": 8, "Z": 0, "Yaw": 0
+      "X": 0, "Y": 8, "Z": 0, "Yaw": 0,
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 100000,
+          "X": 0, "Y": 0, "Z": -0.1,
+          "DrawDebugPoints": false,
+          "DataFrame": "VehicleInertialFrame"
+        }
+      }
     },
     "Drone4": {
       "VehicleType": "SimpleFlight",
@@ -47,7 +87,19 @@
       "EnableCollisions": true,
       "AllowAPIAlways": true,
       "AutoCreate": true,
-      "X": 0, "Y": 12, "Z": 0, "Yaw": 0
+      "X": 0, "Y": 12, "Z": 0, "Yaw": 0,
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 100000,
+          "X": 0, "Y": 0, "Z": -0.1,
+          "DrawDebugPoints": false,
+          "DataFrame": "VehicleInertialFrame"
+        }
+      }
     },
     "Drone5": {
       "VehicleType": "SimpleFlight",
@@ -55,7 +107,19 @@
       "EnableCollisions": true,
       "AllowAPIAlways": true,
       "AutoCreate": true,
-      "X": 0, "Y": 16, "Z": 0, "Yaw": 0
+      "X": 0, "Y": 16, "Z": 0, "Yaw": 0,
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 100000,
+          "X": 0, "Y": 0, "Z": -0.1,
+          "DrawDebugPoints": false,
+          "DataFrame": "VehicleInertialFrame"
+        }
+      }
     }
   }
 }
