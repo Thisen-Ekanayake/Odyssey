@@ -1,9 +1,10 @@
 airsim_venv/
-Blocks/
-Africa_Savannah/
+envs/
 
+__pycache__/
 *.pyc
-*.md
 *.log
 *.zip
-*.sh
+
+models/
+logs/

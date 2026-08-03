@@ -3,7 +3,7 @@
 Minimal 3-drone swarm demo for AirSim/Blocks.
 
 Run this on the HOST (not in the container) after the Blocks sim window is up:
-    ./airsim_venv/bin/python swarm_demo.py
+    ./airsim_venv/bin/python flight/swarm_demo.py
 
 It connects to the sim over RPC (127.0.0.1:41451, exposed via --net=host),
 takes all drones off together, flies a simple line formation, hovers, lands.

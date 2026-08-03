@@ -6,7 +6,7 @@ Reads: RGB camera, depth camera, LiDAR, IMU, GPS, magnetometer, barometer.
 Requires LidarSensor1 in settings.json for Drone1 (already configured).
 
 Run after the Blocks sim is up:
-    ./airsim_venv/bin/python sensor_demo.py
+    ./airsim_venv/bin/python flight/sensor_demo.py
 """
 import numpy as np
 import airsim
