@@ -63,11 +63,25 @@ class AirSimFormationEnv(gym.Env):
         return p.x_val + sx, p.y_val + sy, v.x_val, v.y_val
 
     def _lidar_min(self):
+        """Distance from the drone to the nearest LiDAR return, in metres.
+
+        Requires settings.json to declare DataFrame: "SensorLocalFrame" — the
+        norm below is only a distance *from the sensor* if the points are in the
+        sensor's own frame. Under the old "VehicleInertialFrame" setting this
+        measured distance from the SPAWN ORIGIN instead, so the obstacle channel
+        fed to PPO grew with how far the drone had flown rather than reporting
+        anything about obstacles.
+
+        NO_RETURN doubles as the observation-space bound, so a genuinely distant
+        return and an empty scan both read as "clear" — intended, since this
+        channel exists for collision avoidance, not for mapping.
+        """
+        NO_RETURN = 50.0
         data = self.client.getLidarData(lidar_name="LidarSensor1", vehicle_name=self.drone)
         if len(data.point_cloud) < 3:
-            return 50.0
+            return NO_RETURN
         pts = np.array(data.point_cloud, dtype=np.float32).reshape(-1, 3)
-        return float(np.linalg.norm(pts, axis=1).min())
+        return min(float(np.linalg.norm(pts, axis=1).min()), NO_RETURN)
 
     def _ring_slot(self):
         angle = SLOT_ANGLE + OMEGA * self._t

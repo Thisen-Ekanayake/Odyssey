@@ -4,6 +4,11 @@ Single-drone LiDAR mapping visualizer for AirSim Drone1.
 Split window: live 3rd-person chase-cam feed (left) + accumulated LiDAR
 point-cloud map (right), both GPU-rendered via Open3D's Filament backend.
 
+Scans are placed by the SIMULATOR'S OWN sensor pose, not by any estimator, so
+this is the "no SLAM" baseline: it shows the best map obtainable with perfect
+localization. Compare against flight/slam_live.py, which places the same scans
+using poses it estimates itself.
+
 Points are colored blue (high) -> red (ground), scaled to the accumulated
 map's own min/max height each update (not a fixed range) so the full
 gradient stays visible regardless of what altitude band is actually being
@@ -33,13 +38,19 @@ os.environ.setdefault("DISPLAY", ":1")
 os.environ["XDG_SESSION_TYPE"] = "x11"
 
 import math
+import sys
 import time
 import threading
+from pathlib import Path
+
 import numpy as np
 import airsim
 import open3d as o3d
 import open3d.visualization.gui as gui  # type: ignore
 import open3d.visualization.rendering as rendering  # type: ignore
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from slam.geometry import airsim_pose_to_matrix  # noqa: E402
 
 from autonomous_navigate import DRONE, ALTITUDE, SPEED
 
@@ -148,9 +159,13 @@ class LidarViewer:
             if len(data.point_cloud) >= 3:
                 pts = np.array(data.point_cloud, dtype=np.float64).reshape(-1, 3)
 
-                # Shift from drone-body frame to world NED frame so scans overlay correctly
-                p = poll_client.getMultirotorState(vehicle_name=DRONE).kinematics_estimated.position
-                pts += np.array([p.x_val, p.y_val, p.z_val])
+                # settings.json declares DataFrame: "SensorLocalFrame", so points
+                # arrive in the LiDAR's own frame and need the full sensor pose --
+                # rotation included -- to land in world NED. Translation alone was
+                # the old bug here: it left every scan un-rotated, so the map
+                # sheared apart as soon as the drone turned.
+                T = airsim_pose_to_matrix(data.pose)
+                pts = pts @ T[:3, :3].T + T[:3, 3]
 
                 map_pts = np.vstack([map_pts, pts])
 
