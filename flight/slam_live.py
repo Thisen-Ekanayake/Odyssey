@@ -51,6 +51,14 @@ from slam.stereo_slam import StereoInertialSLAM  # noqa: E402
 RATE_HZ = 10.0
 MAP_REFRESH_EVERY = 5        # SLAM frames between map redraws
 
+# Rate for the display-only camera panel when SLAM itself doesn't already
+# consume images (--method lidar). Deliberately its own thread/connection,
+# polling far slower than RATE_HZ: simGetImages over the RPC link is much
+# slower than getLidarData/getImuData, and fetching a 1280x720 frame inside
+# the LiDAR/IMU polling loop stalls it long enough that the map visibly stops
+# growing while the drone keeps flying. Decoupling it fixes that.
+CAMERA_DISPLAY_HZ = 3.0
+
 # Display-only downsample. The SLAM map itself stays at cfg.MAP_VOXEL_SIZE (0.4 m)
 # because registration and the map metrics want that resolution -- but drawing it
 # raw over a whole circuit is a solid wall of points with no visible structure.
@@ -272,6 +280,34 @@ def slam_thread(viewer: SlamViewer, method: str) -> None:
                   end="", flush=True)
 
 
+def camera_thread(viewer: SlamViewer, method: str) -> None:
+    """Own connection: msgpack-rpc's IOLoop is not thread-safe, and this must
+    never share the SLAM thread's client -- that would put a slow simGetImages
+    call back on the critical path that feeds the map (see slam_thread).
+
+    Only needed for --method lidar: --method stereo already gets its image
+    for free from slam_thread's own stereo frames.
+    """
+    if method != "lidar":
+        return
+    client = airsim.MultirotorClient()
+    client.confirmConnection()
+    period = 1.0 / CAMERA_DISPLAY_HZ
+
+    while viewer.running:
+        tick = time.time()
+        resp = client.simGetImages([
+            airsim.ImageRequest(cfg.CAM_LEFT, airsim.ImageType.Scene, False, False),
+        ], vehicle_name=cfg.DRONE)
+        if resp:
+            want = resp[0].width * resp[0].height * 3
+            if resp[0].width and resp[0].height and len(resp[0].image_data_uint8) == want:
+                img = np.frombuffer(resp[0].image_data_uint8, np.uint8).reshape(
+                    resp[0].height, resp[0].width, 3)
+                viewer.update_image(img)
+        time.sleep(max(0.0, period - (time.time() - tick)))
+
+
 def fly_route(client: airsim.MultirotorClient, viewer: SlamViewer) -> None:
     """Fly the same circuit the benchmark records, so the demo matches the study."""
     wps = cfg.route_waypoints()
@@ -325,6 +361,7 @@ def main() -> int:
     viewer = SlamViewer(args.method, condition.name,
                         display_voxel=args.map_voxel, point_size=args.point_size)
     threading.Thread(target=slam_thread, args=(viewer, args.method), daemon=True).start()
+    threading.Thread(target=camera_thread, args=(viewer, args.method), daemon=True).start()
     threading.Thread(target=fly_route, args=(client, viewer), daemon=True).start()
 
     try:

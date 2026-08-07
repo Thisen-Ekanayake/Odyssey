@@ -76,8 +76,8 @@ def _body_from_optical(x: float, y: float, z: float) -> np.ndarray:
 
 
 # Mount points, matching the Cameras block in settings.json.
-T_BODY_CAM_LEFT = _body_from_optical(0.30, -0.125, 0.0)
-T_BODY_CAM_RIGHT = _body_from_optical(0.30, +0.125, 0.0)
+T_BODY_CAM_LEFT = _body_from_optical(0.30, -0.125, 0.30)
+T_BODY_CAM_RIGHT = _body_from_optical(0.30, +0.125, 0.30)
 
 # LiDAR mount: 10 cm above the body origin, no rotation.
 T_BODY_LIDAR = np.eye(4, dtype=np.float64)
