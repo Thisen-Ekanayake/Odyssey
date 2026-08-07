@@ -1,0 +1,293 @@
+{
+  "SeeDocsAt": "https://github.com/Microsoft/AirSim/blob/main/docs/settings_json.md",
+  "SettingsVersion": 1.2,
+  "SimMode": "Multirotor",
+  "ClockSpeed": 1.0,
+  "ViewMode": "SpringArmChase",
+  "CameraDefaults": {
+    "CaptureSettings": [
+      {
+        "ImageType": 0,
+        "Width": 1280,
+        "Height": 720,
+        "FOV_Degrees": 90
+      }
+    ]
+  },
+  "ExternalCameras": {
+    "ChaseCam": {
+      "X": 0, "Y": -8, "Z": -11,
+      "Pitch": -20, "Roll": 0, "Yaw": 0
+    }
+  },
+  "Vehicles": {
+    "Drone1": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "AutoCreate": true,
+      "X": 150, "Y": 150, "Z": 0, "Yaw": 0,
+
+      "Cameras": {
+        "StereoLeft": {
+          "X": 0.30, "Y": -0.125, "Z": 0.30,
+          "Pitch": 0, "Roll": 0, "Yaw": 0,
+          "CaptureSettings": [
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 },
+            { "ImageType": 1, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
+          ]
+        },
+        "StereoRight": {
+          "X": 0.30, "Y": 0.125, "Z": 0.30,
+          "Pitch": 0, "Roll": 0, "Yaw": 0,
+          "CaptureSettings": [
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
+          ]
+        }
+      },
+
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 300000,
+          "Range": 100,
+          "HorizontalFOVStart": -180,
+          "HorizontalFOVEnd": 180,
+          "VerticalFOVUpper": 15,
+          "VerticalFOVLower": -45,
+          "X": 0, "Y": 0, "Z": -0.1,
+          "Roll": 0, "Pitch": 0, "Yaw": 0,
+          "DrawDebugPoints": false,
+          "DataFrame": "SensorLocalFrame"
+        },
+        "Imu": {
+          "SensorType": 2,
+          "Enabled": true,
+          "AngularRandomWalk": 0.30,
+          "GyroBiasStabilityTau": 500.0,
+          "GyroBiasStability": 4.6,
+          "VelocityRandomWalk": 0.24,
+          "AccelBiasStabilityTau": 800.0,
+          "AccelBiasStability": 36.0
+        },
+        "Gps": {
+          "SensorType": 3,
+          "Enabled": true
+        },
+        "Magnetometer": {
+          "SensorType": 4,
+          "Enabled": true
+        },
+        "Barometer": {
+          "SensorType": 1,
+          "Enabled": true
+        }
+      }
+    },
+    "Drone2": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "AutoCreate": true,
+      "X": 150, "Y": -150, "Z": 0, "Yaw": 0,
+
+      "Cameras": {
+        "StereoLeft": {
+          "X": 0.30, "Y": -0.125, "Z": 0.30,
+          "Pitch": 0, "Roll": 0, "Yaw": 0,
+          "CaptureSettings": [
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 },
+            { "ImageType": 1, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
+          ]
+        },
+        "StereoRight": {
+          "X": 0.30, "Y": 0.125, "Z": 0.30,
+          "Pitch": 0, "Roll": 0, "Yaw": 0,
+          "CaptureSettings": [
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
+          ]
+        }
+      },
+
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 300000,
+          "Range": 100,
+          "HorizontalFOVStart": -180,
+          "HorizontalFOVEnd": 180,
+          "VerticalFOVUpper": 15,
+          "VerticalFOVLower": -45,
+          "X": 0, "Y": 0, "Z": -0.1,
+          "Roll": 0, "Pitch": 0, "Yaw": 0,
+          "DrawDebugPoints": false,
+          "DataFrame": "SensorLocalFrame"
+        },
+        "Imu": {
+          "SensorType": 2,
+          "Enabled": true,
+          "AngularRandomWalk": 0.30,
+          "GyroBiasStabilityTau": 500.0,
+          "GyroBiasStability": 4.6,
+          "VelocityRandomWalk": 0.24,
+          "AccelBiasStabilityTau": 800.0,
+          "AccelBiasStability": 36.0
+        },
+        "Gps": {
+          "SensorType": 3,
+          "Enabled": true
+        },
+        "Magnetometer": {
+          "SensorType": 4,
+          "Enabled": true
+        },
+        "Barometer": {
+          "SensorType": 1,
+          "Enabled": true
+        }
+      }
+    },
+    "Drone3": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "AutoCreate": true,
+      "X": -150, "Y": 150, "Z": 0, "Yaw": 0,
+
+      "Cameras": {
+        "StereoLeft": {
+          "X": 0.30, "Y": -0.125, "Z": 0.30,
+          "Pitch": 0, "Roll": 0, "Yaw": 0,
+          "CaptureSettings": [
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 },
+            { "ImageType": 1, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
+          ]
+        },
+        "StereoRight": {
+          "X": 0.30, "Y": 0.125, "Z": 0.30,
+          "Pitch": 0, "Roll": 0, "Yaw": 0,
+          "CaptureSettings": [
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
+          ]
+        }
+      },
+
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 300000,
+          "Range": 100,
+          "HorizontalFOVStart": -180,
+          "HorizontalFOVEnd": 180,
+          "VerticalFOVUpper": 15,
+          "VerticalFOVLower": -45,
+          "X": 0, "Y": 0, "Z": -0.1,
+          "Roll": 0, "Pitch": 0, "Yaw": 0,
+          "DrawDebugPoints": false,
+          "DataFrame": "SensorLocalFrame"
+        },
+        "Imu": {
+          "SensorType": 2,
+          "Enabled": true,
+          "AngularRandomWalk": 0.30,
+          "GyroBiasStabilityTau": 500.0,
+          "GyroBiasStability": 4.6,
+          "VelocityRandomWalk": 0.24,
+          "AccelBiasStabilityTau": 800.0,
+          "AccelBiasStability": 36.0
+        },
+        "Gps": {
+          "SensorType": 3,
+          "Enabled": true
+        },
+        "Magnetometer": {
+          "SensorType": 4,
+          "Enabled": true
+        },
+        "Barometer": {
+          "SensorType": 1,
+          "Enabled": true
+        }
+      }
+    },
+    "Drone4": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "AutoCreate": true,
+      "X": -150, "Y": -150, "Z": 0, "Yaw": 0,
+
+      "Cameras": {
+        "StereoLeft": {
+          "X": 0.30, "Y": -0.125, "Z": 0.30,
+          "Pitch": 0, "Roll": 0, "Yaw": 0,
+          "CaptureSettings": [
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 },
+            { "ImageType": 1, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
+          ]
+        },
+        "StereoRight": {
+          "X": 0.30, "Y": 0.125, "Z": 0.30,
+          "Pitch": 0, "Roll": 0, "Yaw": 0,
+          "CaptureSettings": [
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
+          ]
+        }
+      },
+
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 300000,
+          "Range": 100,
+          "HorizontalFOVStart": -180,
+          "HorizontalFOVEnd": 180,
+          "VerticalFOVUpper": 15,
+          "VerticalFOVLower": -45,
+          "X": 0, "Y": 0, "Z": -0.1,
+          "Roll": 0, "Pitch": 0, "Yaw": 0,
+          "DrawDebugPoints": false,
+          "DataFrame": "SensorLocalFrame"
+        },
+        "Imu": {
+          "SensorType": 2,
+          "Enabled": true,
+          "AngularRandomWalk": 0.30,
+          "GyroBiasStabilityTau": 500.0,
+          "GyroBiasStability": 4.6,
+          "VelocityRandomWalk": 0.24,
+          "AccelBiasStabilityTau": 800.0,
+          "AccelBiasStability": 36.0
+        },
+        "Gps": {
+          "SensorType": 3,
+          "Enabled": true
+        },
+        "Magnetometer": {
+          "SensorType": 4,
+          "Enabled": true
+        },
+        "Barometer": {
+          "SensorType": 1,
+          "Enabled": true
+        }
+      }
+    }
+  }
+}
