@@ -8,3 +8,8 @@ __pycache__/
 
 models/
 logs/
+
+# recorded SLAM datasets (~3 GB per weather condition) and benchmark output
+datasets/
+datasets_synth/
+results/
