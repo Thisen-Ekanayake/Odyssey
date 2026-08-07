@@ -12,4 +12,5 @@ logs/
 # recorded SLAM datasets (~3 GB per weather condition) and benchmark output
 datasets/
 datasets_synth/
+datasets_square/
 results/
