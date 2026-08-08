@@ -13,8 +13,11 @@ LiDAR points arrive in each drone's own local NED frame (DataFrame:
 "SensorLocalFrame" in settings.json), so placing them on a SHARED map needs
 that drone's spawn offset added on top of its sensor pose -- the same
 world_x/world_y = local + spawn convention swarm_comms.SwarmPositions uses.
-Points are colored placed by the SIMULATOR's own sensor pose (perfect
-localization, no SLAM), same baseline lidar_viz.py uses for one drone.
+Points are placed by the SIMULATOR's own sensor pose (perfect localization,
+no SLAM), same baseline lidar_viz.py uses for one drone. Each drone keeps a
+distinct base hue, shaded dark-to-light by height (NED z) so vertical
+structure -- rooftops vs street level vs the swarm's own flight altitude --
+is visible at a glance (see _height_gradient_colors / HEIGHT_GRADIENT_Z).
 
 The flight itself is delegated to swarm_converge.run() in a background
 thread; this script only adds the 5-window visualization on top of it.
@@ -56,7 +59,7 @@ from swarm_comms import DRONES, SPAWNS, SwarmPositions
 import swarm_converge
 
 UPDATE_HZ = 10       # LiDAR poll rate
-VOXEL_SIZE = 1.0      # m; keeps the accumulated map's point count/density down
+VOXEL_SIZE = 1.5      # m; keeps the accumulated map's point count/density down
 
 # name -> (drone, external camera name), one chase cam per drone.
 CHASE_CAMS = {
@@ -78,6 +81,21 @@ DRONE_COLOR = {
     "Drone4": (1.0, 1.0, 0.3),   # yellow
 }
 
+# Height shading: within each drone's hue, points near the ground are
+# darkened and points higher up are lightened toward white, so vertical
+# structure (rooftops vs street level vs the drones' own flight altitude) is
+# visible at a glance without losing per-drone identity. Z is NED
+# (down-positive), so the "bright" end is the more-negative value. The range
+# is FIXED (not rescaled per-frame from the live min/max) so the gradient
+# doesn't shift as the map fills in. Measured live at cruise ALTITUDE
+# (-25, see swarm_converge.py): most returns are ground hits at z ~ 0 (p75
+# already ~0), with a sparse elevated tail (rooftops/trees near the drones'
+# own altitude) down to z ~ -30 -- range set just past that so ground pins
+# near-black and the elevated tail uses the full range up to near-white.
+HEIGHT_GRADIENT_Z = (1.0, -28.0)   # (dark-end z, bright-end z), meters NED
+HEIGHT_GRADIENT_DARK = 0.28        # multiply base color by this at the dark end
+HEIGHT_GRADIENT_LIGHT = 0.85       # blend fraction toward white at the bright end
+
 CAM_WIN_SIZE = (640, 360)
 MAP_WIN_SIZE = (900, 700)
 
@@ -86,6 +104,19 @@ ROTATE_PANEL_SIZE = (230, 160)
 DEFAULT_ELEVATION_DEG = 35.0   # fixed pitch of the orbit; azimuth is what rotates
 DEFAULT_ROTATE_SPEED = 20.0    # deg/s for the auto-rotate animation
 ROTATE_HZ = 20                 # animation tick rate
+
+
+def _height_gradient_colors(base_color, z: np.ndarray) -> np.ndarray:
+    """(N,3) RGB array tinting `base_color` from dark (low) to light (high)
+    by NED height `z` (N,), so vertical structure reads at a glance while
+    each drone's points stay recognizably its own hue."""
+    base = np.asarray(base_color, dtype=np.float64)
+    z_dark, z_bright = HEIGHT_GRADIENT_Z
+    t = (z - z_dark) / (z_bright - z_dark)
+    t = np.clip(t, 0.0, 1.0)[:, None]
+    dark = base * HEIGHT_GRADIENT_DARK
+    light = base + (1.0 - base) * HEIGHT_GRADIENT_LIGHT
+    return dark + t * (light - dark)
 
 
 class SwarmViewer:
@@ -312,13 +343,13 @@ class SwarmViewer:
             def _update():
                 combined = o3d.geometry.PointCloud()
                 for drone in DRONES:
-                    n = len(map_pts[drone])
-                    if n == 0:
+                    drone_pts = map_pts[drone]
+                    if len(drone_pts) == 0:
                         continue
                     pcd = o3d.geometry.PointCloud()
-                    pcd.points = o3d.utility.Vector3dVector(map_pts[drone])
+                    pcd.points = o3d.utility.Vector3dVector(drone_pts)
                     pcd.colors = o3d.utility.Vector3dVector(
-                        np.tile(DRONE_COLOR[drone], (n, 1)))
+                        _height_gradient_colors(DRONE_COLOR[drone], drone_pts[:, 2]))
                     combined += pcd
                 self.map_widget.scene.remove_geometry("map")
                 self.map_widget.scene.add_geometry("map", combined, self.mat)
