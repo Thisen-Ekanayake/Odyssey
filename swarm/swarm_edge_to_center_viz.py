@@ -192,12 +192,22 @@ class EdgeToCenterViewer:
         self.map_widget.scene.add_geometry("map", empty_map, self.map_mat)
         map_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=5.0)
         self.map_widget.scene.add_geometry("frame", map_frame, frame_mat)
-        self.map_widget.setup_camera(60.0, bounds, bounds.get_center())
+        # Look-at target: bounds.get_center() sits at z=-15 (midpoint of the
+        # padded [-35, 5] box, sized to frame the drones' full climb), but
+        # LiDAR ground-scan returns cluster near z~0 (see HEIGHT_GRADIENT_Z
+        # in swarm_converge_viz.py) -- centering on the box instead of the
+        # data pushed the map toward the bottom of the screen, worst during
+        # auto-rotate since each tick's look_at() overwrites any manual
+        # recenter.
+        map_look_at = bounds.get_center()
+        map_look_at[2] = 0.0
+        self.map_widget.setup_camera(60.0, bounds, map_look_at)
         # Rotation control on the LiDAR map only -- self.widget (the
         # edge-to-center segmentation lines) is computed geometry, not
         # sensor data.
         self.rotation = scene_rotation.RotationPanel(
-            self.map_win, self.map_widget, bounds, is_running=lambda: self._running)
+            self.map_win, self.map_widget, bounds, center=map_look_at,
+            is_running=lambda: self._running)
 
         threading.Thread(target=self._poll, daemon=True).start()
         threading.Thread(target=self._poll_lidar, daemon=True).start()
