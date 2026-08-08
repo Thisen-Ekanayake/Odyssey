@@ -125,13 +125,15 @@ USER airsim_user
 airsim_swarm/
 ├── Dockerfile.vk           # Builds airsim_swarm:vk
 ├── settings.json           # AirSim vehicle/sensor config (bind-mounted into container)
-├── flight/
-│   ├── swarm_demo.py       # 3-drone line-formation demo
-│   ├── swarm_circle.py     # 5-drone ring-orbit demo
+├── flight/                 # single-drone scripts
 │   ├── sensor_demo.py      # Single-drone sensor readout (camera, LiDAR, IMU, GPS, ...)
 │   ├── lidar_viz.py        # Single-drone LiDAR mapping + chase-cam dual view (Open3D)
-│   ├── detect_objects.py   # YOLO26 object detection on the drone's FPV camera
-│   └── spawn_traffic.py    # Scatters static car/prop assets for detect_objects.py to find
+│   └── detect_objects.py   # YOLO26 object detection on the drone's FPV camera
+├── swarm/                  # multi-drone (Drone1-4) scripts
+│   ├── swarm_demo.py       # 3-drone line-formation demo
+│   └── swarm_circle.py     # 5-drone ring-orbit demo
+├── tools/                  # offline/utility scripts
+│   └── spawn_traffic.py    # Scatters static car/prop assets for flight/detect_objects.py to find
 ├── rl/
 │   ├── airsim_gym_env.py   # Gymnasium environment wrapper
 │   └── train_drl.py        # DRL (PPO) training entry point
@@ -440,7 +442,7 @@ All scripts run **on the host** (not inside the container). They connect to the 
 3-drone demo: arm → take off together → spread into a 5 m-spaced line along X → hover 5 s → land.
 
 ```bash
-./airsim_venv/bin/python flight/swarm_demo.py
+./airsim_venv/bin/python swarm/swarm_demo.py
 ```
 
 Drone names used: `Drone1`, `Drone2`, `Drone3` (must match `settings.json`). Formation altitude: −8 m NED (8 m above ground).
@@ -450,7 +452,7 @@ Drone names used: `Drone1`, `Drone2`, `Drone3` (must match `settings.json`). For
 5-drone ring orbit: arm → take off → spread into a 10 m-radius ring → orbit the center for 2 revolutions (20 s each) with velocity-controlled closed-loop tracking → land.
 
 ```bash
-./airsim_venv/bin/python flight/swarm_circle.py
+./airsim_venv/bin/python swarm/swarm_circle.py
 ```
 
 Key parameters (editable at top of file):

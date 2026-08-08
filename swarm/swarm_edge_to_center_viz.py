@@ -34,7 +34,7 @@ _height_gradient_colors / HEIGHT_GRADIENT_Z, values copied from
 swarm_converge_viz.py since both scripts fly the same ALTITUDE).
 
 Run after the sim is up:
-    ./airsim_venv/bin/python flight/swarm_edge_to_center_viz.py
+    ./airsim_venv/bin/python swarm/swarm_edge_to_center_viz.py
 
 Closing any window only stops the viewer -- the flight itself (and its own
 end-of-maneuver landing) runs independently on its own client and keeps

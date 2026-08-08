@@ -20,7 +20,7 @@ top of it.
 
 Run after the sim is up, with Drone1..Drone4 armed at their settings.json
 corners:
-    ./airsim_venv/bin/python flight/swarm_converge.py
+    ./airsim_venv/bin/python swarm/swarm_converge.py
 """
 from __future__ import annotations
 

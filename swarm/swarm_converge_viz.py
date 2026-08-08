@@ -31,7 +31,7 @@ change the azimuth angle fed to the same camera.look_at() call.
 
 Run after the sim is up (restart required after the settings.json change
 that added ChaseCam2-4):
-    ./airsim_venv/bin/python flight/swarm_converge_viz.py
+    ./airsim_venv/bin/python swarm/swarm_converge_viz.py
 
 Close any window to land the swarm and exit.
 """

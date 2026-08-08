@@ -33,7 +33,7 @@ per-waypoint velocity control (see record_dataset.py / slam/recorder.py),
 which visibly tilts/lurches at corners.
 
 Run after the sim is up, with Drone1-4 armed at their settings.json corners:
-    ./airsim_venv/bin/python flight/swarm_edge_to_center.py
+    ./airsim_venv/bin/python swarm/swarm_edge_to_center.py
 """
 from __future__ import annotations
 

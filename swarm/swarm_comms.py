@@ -14,7 +14,7 @@ rather than pretending AirSim provides it.
 
 Run standalone for a demo (arms + takes off all 4, prints shared positions
 for a few seconds, lands):
-    ./airsim_venv/bin/python flight/swarm_comms.py
+    ./airsim_venv/bin/python swarm/swarm_comms.py
 """
 from __future__ import annotations
 

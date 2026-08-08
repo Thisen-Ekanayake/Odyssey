@@ -11,14 +11,14 @@ simSpawnObject, not driving/walking AI. Assets are discovered at runtime with
 simListAssets() rather than hardcoded, since exact asset paths vary by level.
 
 Run after the sim is up:
-    ./airsim_venv/bin/python flight/spawn_traffic.py
+    ./airsim_venv/bin/python tools/spawn_traffic.py
 
     # list matching assets only, without spawning anything:
-    ./airsim_venv/bin/python flight/spawn_traffic.py --list
+    ./airsim_venv/bin/python tools/spawn_traffic.py --list
 
     # spawn a different count, or force a specific asset:
-    ./airsim_venv/bin/python flight/spawn_traffic.py --count 12
-    ./airsim_venv/bin/python flight/spawn_traffic.py --asset /Game/Foo/Car_02.Car_02
+    ./airsim_venv/bin/python tools/spawn_traffic.py --count 12
+    ./airsim_venv/bin/python tools/spawn_traffic.py --asset /Game/Foo/Car_02.Car_02
 """
 import argparse
 import math

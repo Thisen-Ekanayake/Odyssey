@@ -12,7 +12,7 @@ world-frame convention as swarm_comms.SwarmPositions / swarm_converge_viz.py:
 local position + that drone's calibrated spawn offset).
 
 Run after the sim is up:
-    ./airsim_venv/bin/python flight/swarm_lines_viz.py
+    ./airsim_venv/bin/python swarm/swarm_lines_viz.py
 
 Close the window to land the swarm and exit.
 """
