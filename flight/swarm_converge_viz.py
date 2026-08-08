@@ -84,7 +84,8 @@ class SwarmViewer:
 
         # --- one small window per drone's chase cam ---
         self.image_widgets = {}
-        for i, drone in enumerate(DRONES):
+        self.cam_windows = {}
+        for drone in DRONES:
             win = app.create_window(
                 f"AirSim — {drone} chase cam", *CAM_WIN_SIZE
             )
@@ -95,6 +96,7 @@ class SwarmViewer:
             win.set_on_layout(self._make_fill_layout(win, widget))
             win.set_on_close(self._on_close)
             self.image_widgets[drone] = widget
+            self.cam_windows[drone] = win
 
         # --- one shared window for the merged LiDAR map ---
         self.map_win = app.create_window("AirSim — Swarm LiDAR Map", *MAP_WIN_SIZE)
@@ -250,11 +252,12 @@ class SwarmViewer:
                     img = o3d.geometry.Image(rgb)
 
                     widget = self.image_widgets[drone]
+                    cam_win = self.cam_windows[drone]
 
                     def _update(im=img, w=widget):
                         w.update_image(im)
 
-                    gui.Application.instance.post_to_main_thread(self.map_win, _update)
+                    gui.Application.instance.post_to_main_thread(cam_win, _update)
 
                     if not reported_ok:
                         print(f"\n[{cam_name}] {drone}: receiving {resp.width}x{resp.height} frames")
