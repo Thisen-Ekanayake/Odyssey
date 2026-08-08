@@ -1,7 +1,7 @@
 """
 Reusable "Desmos-style" 3D-view rotation control for an Open3D SceneWidget:
 a small panel (manual azimuth slider, "Auto-rotate 360deg" checkbox, speed
-slider) that orbits the widget's camera around a fixed elevation/radius,
+number entry) that orbits the widget's camera around a fixed elevation/radius,
 centered on a given bounds' center -- dragging the slider or the animation
 both just change the azimuth angle fed to the same camera.look_at() call.
 
@@ -33,12 +33,13 @@ import open3d.visualization.gui as gui  # type: ignore
 
 PANEL_SIZE = (230, 160)
 DEFAULT_ELEVATION_DEG = 35.0   # fixed pitch of the orbit; azimuth is what rotates
-DEFAULT_ROTATE_SPEED = 20.0    # deg/s for the auto-rotate animation
+DEFAULT_ROTATE_SPEED = 2.0    # deg/s for the auto-rotate animation
 ROTATE_HZ = 20                 # animation tick rate
 
 
 class RotationPanel:
     def __init__(self, window, widget, bounds, *, is_running,
+                 center=None,
                  elevation_deg: float = DEFAULT_ELEVATION_DEG,
                  rotate_speed: float = DEFAULT_ROTATE_SPEED,
                  panel_size=PANEL_SIZE):
@@ -48,9 +49,16 @@ class RotationPanel:
         self._panel_size = panel_size
 
         # Radius sized off the XY footprint (much larger than the Z range)
-        # so the whole scene stays framed at any azimuth.
+        # so the whole scene stays framed at any azimuth. `bounds` is often
+        # padded well past where the actual geometry sits (e.g. enough Z
+        # range to cover a drone's full climb, not just its ground-scan
+        # returns), so its own center can be a poor look-at target -- pass
+        # `center` explicitly to orbit around the real data instead; this is
+        # what keeps the scene framed dead-center on screen, including while
+        # auto-rotating (no way to nudge it back once the animation's own
+        # look_at() call overwrites any manual pan on the next tick).
         extent = bounds.get_extent()
-        self._center = tuple(bounds.get_center())
+        self._center = tuple(center) if center is not None else tuple(bounds.get_center())
         self._orbit_radius = 0.9 * math.hypot(extent[0], extent[1])
         self._elevation_deg = elevation_deg
         self._azimuth_deg = 0.0
@@ -82,12 +90,12 @@ class RotationPanel:
         self.auto_rotate_checkbox.set_on_checked(self._on_auto_rotate_toggled)
         panel.add_child(self.auto_rotate_checkbox)
 
-        self.speed_slider = gui.Slider(gui.Slider.DOUBLE)
-        self.speed_slider.set_limits(1.0, 90.0)
-        self.speed_slider.double_value = self._rotate_speed
-        self.speed_slider.set_on_value_changed(self._on_speed_changed)
+        self.speed_edit = gui.NumberEdit(gui.NumberEdit.DOUBLE)
+        self.speed_edit.set_limits(1.0, 90.0)
+        self.speed_edit.double_value = self._rotate_speed
+        self.speed_edit.set_on_value_changed(self._on_speed_changed)
         panel.add_child(gui.Label("Speed (deg/s)"))
-        panel.add_child(self.speed_slider)
+        panel.add_child(self.speed_edit)
 
         self.panel = panel
         self._window.add_child(panel)
