@@ -221,12 +221,20 @@ def _render_all() -> None:
         if not frames:
             continue
         out_path = _run_dir / f"{folder.name}.mp4"
-        result = subprocess.run(
-            [ffmpeg, "-y", "-start_number", "1", "-framerate", str(FPS),
-             "-i", str(folder / "frame_%06d.jpg"), "-r", str(FPS),
-             "-vf", vf, "-c:v", "libx264", "-pix_fmt", "yuv420p", str(out_path)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=120,
-        )
+        try:
+            result = subprocess.run(
+                [ffmpeg, "-y", "-start_number", "1", "-framerate", str(FPS),
+                 "-i", str(folder / "frame_%06d.jpg"), "-r", str(FPS),
+                 "-vf", vf, "-preset", "veryfast",
+                 "-c:v", "libx264", "-pix_fmt", "yuv420p", str(out_path)],
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=600,
+            )
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            # One folder's encode must never stop the rest of them -- a run
+            # can have thousands of frames per window, so give each attempt
+            # its own failure boundary instead of one shared try/except.
+            _log(f"ffmpeg failed for {folder.relative_to(REPO_ROOT)}: {exc}")
+            continue
         if result.returncode == 0:
             _log(f"rendered {out_path.relative_to(REPO_ROOT)} ({len(frames)} frames)")
         else:
