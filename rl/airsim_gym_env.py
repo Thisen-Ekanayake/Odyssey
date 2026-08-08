@@ -5,7 +5,7 @@ Gymnasium environment wrapping AirSim for single-drone ring-orbit formation-keep
 Observation (5,): [radial_error, tang_error, vx, vy, lidar_min_dist]
 Action (2,):      [vx_cmd, vy_cmd] world-frame NED, clipped to ±VEL_LIMIT m/s
 
-Train with train_drl.py, then swap the velocity-command block in swarm_circle.py.
+Train with train_drl.py, then swap the velocity-command block in swarm/swarm_circle.py.
 """
 import math
 import time
@@ -15,7 +15,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import airsim
 
-# Ring geometry — must match swarm_circle.py
+# Ring geometry — must match swarm/swarm_circle.py
 SPAWN_XY   = (0.0, 0.0)          # Drone1 world spawn (X, Y) NED
 CENTER_XY  = (0.0, 8.0)          # ring center world (X, Y) NED
 RADIUS     = 10.0                 # ring radius (m)

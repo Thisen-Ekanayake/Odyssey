@@ -3,7 +3,7 @@
 5-drone ring formation that orbits as a whole about its center (AirSim/Blocks).
 
 Run on the HOST after the Blocks sim window is up:
-    ./airsim_venv/bin/python flight/swarm_circle.py
+    ./airsim_venv/bin/python swarm/swarm_circle.py
 
 Behaviour:
     arm -> take off together -> spread into a 5-point ring -> spin the whole ring

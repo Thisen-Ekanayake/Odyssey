@@ -65,7 +65,7 @@ Open a **second** terminal (leave Terminal A running):
 
 ```bash
 cd ~/airsim_swarm
-./airsim_venv/bin/python flight/swarm_demo.py
+./airsim_venv/bin/python swarm/swarm_demo.py
 ```
 
 Expected output:
@@ -112,14 +112,14 @@ docker rm -f <name-or-id>
      "X": 0, "Y": 12, "Z": 0, "Yaw": 0
    }
    ```
-2. Edit `flight/swarm_demo.py` — add the same name to the `DRONES` list:
+2. Edit `swarm/swarm_demo.py` — add the same name to the `DRONES` list:
    ```python
    DRONES = ["Drone1", "Drone2", "Drone3", "Drone4"]
    ```
 3. Restart the simulator (Terminal A) for `settings.json` changes to take effect.
 
 ### Write your own flight logic
-Copy `flight/swarm_demo.py` and use the AirSim Python API. Core calls:
+Copy `swarm/swarm_demo.py` and use the AirSim Python API. Core calls:
 ```python
 import airsim
 c = airsim.MultirotorClient()        # connects to 127.0.0.1:41451
@@ -159,7 +159,7 @@ cd ~/airsim_swarm && ./scripts/run_swarm.sh            # GUI
 cd ~/airsim_swarm && HEADLESS=1 ./scripts/run_swarm.sh # headless
 
 # Terminal B — control drones
-cd ~/airsim_swarm && ./airsim_venv/bin/python flight/swarm_demo.py
+cd ~/airsim_swarm && ./airsim_venv/bin/python swarm/swarm_demo.py
 
 # Rebuild image (only if missing)
 docker build -f Dockerfile.vk -t airsim_swarm:vk .

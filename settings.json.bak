@@ -18,18 +18,6 @@
     "ChaseCam": {
       "X": 0, "Y": -8, "Z": -11,
       "Pitch": -20, "Roll": 0, "Yaw": 0
-    },
-    "ChaseCam2": {
-      "X": 0, "Y": -8, "Z": -11,
-      "Pitch": -20, "Roll": 0, "Yaw": 0
-    },
-    "ChaseCam3": {
-      "X": 0, "Y": -8, "Z": -11,
-      "Pitch": -20, "Roll": 0, "Yaw": 0
-    },
-    "ChaseCam4": {
-      "X": 0, "Y": -8, "Z": -11,
-      "Pitch": -20, "Roll": 0, "Yaw": 0
     }
   },
   "Vehicles": {
@@ -46,14 +34,15 @@
           "X": 0.30, "Y": -0.125, "Z": 0.30,
           "Pitch": 0, "Roll": 0, "Yaw": 0,
           "CaptureSettings": [
-            { "ImageType": 0, "Width": 640, "Height": 360, "FOV_Degrees": 90 }
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 },
+            { "ImageType": 1, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
           ]
         },
         "StereoRight": {
           "X": 0.30, "Y": 0.125, "Z": 0.30,
           "Pitch": 0, "Roll": 0, "Yaw": 0,
           "CaptureSettings": [
-            { "ImageType": 0, "Width": 640, "Height": 360, "FOV_Degrees": 90 }
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
           ]
         }
       },
@@ -64,7 +53,7 @@
           "Enabled": true,
           "NumberOfChannels": 16,
           "RotationsPerSecond": 10,
-          "PointsPerSecond": 100000,
+          "PointsPerSecond": 300000,
           "Range": 100,
           "HorizontalFOVStart": -180,
           "HorizontalFOVEnd": 180,
@@ -105,21 +94,22 @@
       "EnableCollisions": true,
       "AllowAPIAlways": true,
       "AutoCreate": true,
-      "X": 90, "Y": -210, "Z": 0, "Yaw": 0,
+      "X": 150, "Y": -150, "Z": 0, "Yaw": 0,
 
       "Cameras": {
         "StereoLeft": {
           "X": 0.30, "Y": -0.125, "Z": 0.30,
           "Pitch": 0, "Roll": 0, "Yaw": 0,
           "CaptureSettings": [
-            { "ImageType": 0, "Width": 640, "Height": 360, "FOV_Degrees": 90 }
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 },
+            { "ImageType": 1, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
           ]
         },
         "StereoRight": {
           "X": 0.30, "Y": 0.125, "Z": 0.30,
           "Pitch": 0, "Roll": 0, "Yaw": 0,
           "CaptureSettings": [
-            { "ImageType": 0, "Width": 640, "Height": 360, "FOV_Degrees": 90 }
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
           ]
         }
       },
@@ -130,7 +120,7 @@
           "Enabled": true,
           "NumberOfChannels": 16,
           "RotationsPerSecond": 10,
-          "PointsPerSecond": 100000,
+          "PointsPerSecond": 300000,
           "Range": 100,
           "HorizontalFOVStart": -180,
           "HorizontalFOVEnd": 180,
@@ -178,14 +168,15 @@
           "X": 0.30, "Y": -0.125, "Z": 0.30,
           "Pitch": 0, "Roll": 0, "Yaw": 0,
           "CaptureSettings": [
-            { "ImageType": 0, "Width": 640, "Height": 360, "FOV_Degrees": 90 }
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 },
+            { "ImageType": 1, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
           ]
         },
         "StereoRight": {
           "X": 0.30, "Y": 0.125, "Z": 0.30,
           "Pitch": 0, "Roll": 0, "Yaw": 0,
           "CaptureSettings": [
-            { "ImageType": 0, "Width": 640, "Height": 360, "FOV_Degrees": 90 }
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
           ]
         }
       },
@@ -196,7 +187,7 @@
           "Enabled": true,
           "NumberOfChannels": 16,
           "RotationsPerSecond": 10,
-          "PointsPerSecond": 100000,
+          "PointsPerSecond": 300000,
           "Range": 100,
           "HorizontalFOVStart": -180,
           "HorizontalFOVEnd": 180,
@@ -237,21 +228,22 @@
       "EnableCollisions": true,
       "AllowAPIAlways": true,
       "AutoCreate": true,
-      "X": -160, "Y": -160, "Z": 0, "Yaw": 0,
+      "X": -150, "Y": -150, "Z": 0, "Yaw": 0,
 
       "Cameras": {
         "StereoLeft": {
           "X": 0.30, "Y": -0.125, "Z": 0.30,
           "Pitch": 0, "Roll": 0, "Yaw": 0,
           "CaptureSettings": [
-            { "ImageType": 0, "Width": 640, "Height": 360, "FOV_Degrees": 90 }
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 },
+            { "ImageType": 1, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
           ]
         },
         "StereoRight": {
           "X": 0.30, "Y": 0.125, "Z": 0.30,
           "Pitch": 0, "Roll": 0, "Yaw": 0,
           "CaptureSettings": [
-            { "ImageType": 0, "Width": 640, "Height": 360, "FOV_Degrees": 90 }
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
           ]
         }
       },
@@ -262,7 +254,7 @@
           "Enabled": true,
           "NumberOfChannels": 16,
           "RotationsPerSecond": 10,
-          "PointsPerSecond": 100000,
+          "PointsPerSecond": 300000,
           "Range": 100,
           "HorizontalFOVStart": -180,
           "HorizontalFOVEnd": 180,
