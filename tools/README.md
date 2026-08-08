@@ -38,7 +38,10 @@ opened at any point in the run), grabs each one's frames as JPEGs at 30 fps into
 meaning beyond "which window"), and registers an `atexit` hook that, once the process is exiting
 (i.e. every window it owned is already closed), renders each `<N>/` folder into a 1920x1080
 H.264 `<N>.mp4` next to it — letterboxed, since windows are captured at their own native size
-(e.g. a 640x360 chase-cam tile), not forced to 1080p on screen.
+(e.g. a 640x360 chase-cam tile), not forced to 1080p on screen — then deletes that `<N>/` frames
+folder, since a run can leave thousands of JPEGs per window and they're pure disk cost once the
+mp4 exists. Only deleted on a successful render; a folder whose encode failed keeps its frames
+so it can be retried or debugged.
 
 Already wired into every script that opens a window: `flight/{segment_objects,slam_live,
 lidar_viz,segment_sam3,follow_road,detect_objects}.py`, `swarm/{swarm_converge_viz,

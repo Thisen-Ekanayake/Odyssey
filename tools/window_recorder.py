@@ -19,7 +19,10 @@ That's it -- no context manager, no start()/stop() calls. On import it:
      every window it owned is already closed), renders each ``<N>/``
      folder's frames into a 1920x1080 H.264 ``<N>.mp4`` next to it
      (letterboxed -- windows are captured at their own native size, not
-     forced to 1080p on screen).
+     forced to 1080p on screen), then deletes that ``<N>/`` folder -- a
+     run can leave thousands of frames per window, and once the mp4 exists
+     they're pure disk cost. A folder is only deleted after its own render
+     succeeds, so a failed render's frames stick around to retry/debug.
 
 Safe to import into headless scripts too: if no window is ever opened, or if
 ``python-xlib``/``ffmpeg``/ImageMagick's ``import`` isn't available, this
@@ -235,9 +238,21 @@ def _render_all() -> None:
             # its own failure boundary instead of one shared try/except.
             _log(f"ffmpeg failed for {folder.relative_to(REPO_ROOT)}: {exc}")
             continue
-        if result.returncode == 0:
+        if result.returncode == 0 and out_path.exists() and out_path.stat().st_size > 0:
             _log(f"rendered {out_path.relative_to(REPO_ROOT)} ({len(frames)} frames)")
+            try:
+                shutil.rmtree(folder)
+            except OSError as exc:
+                _log(f"rendered but could not delete frames for "
+                     f"{folder.relative_to(REPO_ROOT)}: {exc}")
         else:
+            # Keep the frames on a failed render -- they're the only way to
+            # retry or debug it, and deleting a folder we couldn't turn into
+            # a video would just lose the recording outright. Do clear away
+            # any partial/empty output ffmpeg left, so the folder isn't sat
+            # next to a same-named .mp4 that looks finished but isn't.
+            if out_path.exists():
+                out_path.unlink(missing_ok=True)
             err = result.stderr.decode(errors="replace").strip().splitlines()
             _log(f"ffmpeg failed for {folder.relative_to(REPO_ROOT)}: "
                  f"{err[-1] if err else 'unknown error'}")
