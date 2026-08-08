@@ -167,9 +167,18 @@ class SwarmViewer:
             [min(xs) - margin, min(ys) - margin, -35.0],
             [max(xs) + margin, max(ys) + margin, 5.0],
         )
-        self.map_widget.setup_camera(60.0, bounds, bounds.get_center())
+        # Look-at target: bounds.get_center() sits at z=-15 (midpoint of the
+        # padded [-35, 5] box, sized to frame the drones' full climb), but
+        # LiDAR ground-scan returns cluster near z~0 (see HEIGHT_GRADIENT_Z
+        # comment above) -- centering on the box instead of the data pushed
+        # the map toward the bottom of the screen, worst during auto-rotate
+        # since each tick's look_at() overwrites any manual recenter.
+        look_at = bounds.get_center()
+        look_at[2] = 0.0
+        self.map_widget.setup_camera(60.0, bounds, look_at)
         self.rotation = scene_rotation.RotationPanel(
-            self.map_win, self.map_widget, bounds, is_running=lambda: self._running)
+            self.map_win, self.map_widget, bounds, center=look_at,
+            is_running=lambda: self._running)
 
         self.map_win.set_on_layout(self._map_layout)
 
