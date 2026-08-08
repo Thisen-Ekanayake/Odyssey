@@ -365,6 +365,15 @@ class SwarmViewer:
     def _poll_chase_cam(self, drone: str, cam_name: str):
         cam_client = airsim.MultirotorClient()
         cam_client.confirmConnection()
+        # getMultirotorState().position is LOCAL to this vehicle, but
+        # simSetCameraPose(..., external=True) places the camera in the
+        # shared WORLD frame -- same local->world offset correction
+        # _poll_lidar already applies to LiDAR points. Without it every
+        # chase cam lands near the same wrong spot regardless of where its
+        # drone actually is, and all 4 windows end up showing near-identical
+        # (wrong) footage.
+        calibration = SwarmPositions(cam_client)
+        off_x, off_y = calibration.offset(drone)
 
         heading = np.array([-1.0, 0.0])
         reported_ok = False
@@ -375,16 +384,18 @@ class SwarmViewer:
                 state = cam_client.getMultirotorState(vehicle_name=drone)
                 pos = state.kinematics_estimated.position
                 vel = state.kinematics_estimated.linear_velocity
+                world_x = pos.x_val + off_x
+                world_y = pos.y_val + off_y
 
                 speed = math.hypot(vel.x_val, vel.y_val)
                 if speed > MIN_SPEED_FOR_HEADING:
                     heading = np.array([vel.x_val, vel.y_val]) / speed
 
-                cam_x = pos.x_val - heading[0] * CHASE_DIST
-                cam_y = pos.y_val - heading[1] * CHASE_DIST
+                cam_x = world_x - heading[0] * CHASE_DIST
+                cam_y = world_y - heading[1] * CHASE_DIST
                 cam_z = pos.z_val - CHASE_HEIGHT
 
-                dx, dy, dz = pos.x_val - cam_x, pos.y_val - cam_y, pos.z_val - cam_z
+                dx, dy, dz = world_x - cam_x, world_y - cam_y, pos.z_val - cam_z
                 yaw = math.atan2(dy, dx)
                 pitch = -math.atan2(dz, math.hypot(dx, dy))
                 pose = airsim.Pose(
