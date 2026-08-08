@@ -25,11 +25,21 @@ from dataclasses import dataclass
 import airsim
 
 # --- swarm layout: name -> spawn (X, Y) in world NED, must match settings.json ---
+# Drone2/Drone4 are moved off the raw corners (150,-150)/(-150,-150): those
+# exact points sit inside/against AirSimNH houses (Medium_House_Prefab_01,
+# Small_House_19), which pinned both drones below a few meters of altitude
+# and blocked all horizontal movement. A small nudge (10-14m) wasn't enough
+# for Drone2 -- its house's collision geometry has a mid-height obstruction a
+# near-ground/target-altitude sample missed, so a real takeoff-and-climb
+# probe (not just teleport + collision-flag sampling, which proved to give
+# false positives/negatives under this build's low headless frame rate) was
+# needed to confirm (90,-210) actually clears. Verified via the multi-tick
+# diagnostic trace, not a single snapshot -- see git history for the probes.
 SPAWNS = {
     "Drone1": (150.0, 150.0),
-    "Drone2": (150.0, -150.0),
+    "Drone2": (90.0, -210.0),
     "Drone3": (-150.0, 150.0),
-    "Drone4": (-150.0, -150.0),
+    "Drone4": (-160.0, -160.0),
 }
 DRONES = list(SPAWNS.keys())
 
