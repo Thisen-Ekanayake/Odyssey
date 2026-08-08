@@ -69,20 +69,46 @@ class SwarmPositions:
         self.drones = drones
         self._positions: dict[str, DronePosition] = {}
 
+        # Calibrate each drone's local->world offset instead of assuming
+        # kinematics_estimated.position reads (0, 0) at that drone's own
+        # spawn. Verified live that this assumption breaks for non-Drone1
+        # vehicles in this multi-vehicle/multi-ExternalCamera setup --
+        # their raw local reading is offset by some other (undocumented)
+        # AirSim reference, not their own spawn. Snapshotting the raw
+        # reading now and using it as this run's zero point sidesteps
+        # needing to know WHY: world position is spawn + (current_local -
+        # this_baseline), which only depends on local position DELTAS being
+        # physically meaningful, not on what the raw values themselves mean.
+        self._baseline: dict[str, tuple[float, float]] = {}
+        for name in self.drones:
+            pos = self.client.getMultirotorState(vehicle_name=name).kinematics_estimated.position
+            self._baseline[name] = (pos.x_val, pos.y_val)
+
+    def offset(self, vehicle_name: str) -> tuple[float, float]:
+        """(dx, dy) to add to a RAW local (x, y) reading to land in world frame.
+
+        Exposed so other code with its own local(x,y) readings -- e.g. LiDAR
+        points, which arrive pre-transformed into this same local frame --
+        can be placed in the same calibrated world frame this class uses.
+        """
+        sx, sy = SPAWNS[vehicle_name]
+        bx, by = self._baseline[vehicle_name]
+        return (sx - bx, sy - by)
+
     def refresh(self) -> dict[str, DronePosition]:
         """Poll every drone's GPS + world position; returns the updated dict."""
         now = time.time()
         for name in self.drones:
             gps = self.client.getGpsData(gps_name="", vehicle_name=name).gnss.geo_point
             local = self.client.getMultirotorState(vehicle_name=name).kinematics_estimated.position
-            sx, sy = SPAWNS[name]
+            dx, dy = self.offset(name)
             self._positions[name] = DronePosition(
                 vehicle_name=name,
                 latitude=gps.latitude,
                 longitude=gps.longitude,
                 altitude=gps.altitude,
-                world_x=local.x_val + sx,
-                world_y=local.y_val + sy,
+                world_x=local.x_val + dx,
+                world_y=local.y_val + dy,
                 timestamp=now,
             )
         return self._positions

@@ -45,7 +45,7 @@ import open3d.visualization.rendering as rendering  # type: ignore
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from slam.geometry import airsim_pose_to_matrix  # noqa: E402
 
-from swarm_comms import DRONES, SPAWNS
+from swarm_comms import DRONES, SPAWNS, SwarmPositions
 import swarm_converge
 
 UPDATE_HZ = 10       # LiDAR poll rate
@@ -161,6 +161,14 @@ class SwarmViewer:
         poll_client = airsim.MultirotorClient()
         poll_client.confirmConnection()
 
+        # Calibrated per-drone local->world offset (see SwarmPositions.offset
+        # in swarm_comms.py): raw local (x, y) is NOT simply zero at that
+        # drone's own spawn for non-Drone1 vehicles in this setup, so this
+        # snapshots each drone's actual reading now and corrects against its
+        # known spawn -- otherwise every drone's map lands in the same spot.
+        calibration = SwarmPositions(poll_client)
+        offsets = {d: calibration.offset(d) for d in DRONES}
+
         map_pts = {d: np.empty((0, 3), dtype=np.float64) for d in DRONES}
 
         while self._running:
@@ -170,15 +178,14 @@ class SwarmViewer:
                     continue
                 pts = np.array(data.point_cloud, dtype=np.float64).reshape(-1, 3)
 
-                # Sensor pose is in THIS vehicle's own local NED frame; add its
-                # spawn offset to land in the shared world frame (Z origin is
-                # common across vehicles, only X/Y differ -- swarm_comms.py's
-                # world_x/world_y convention).
+                # Sensor pose is in THIS vehicle's own local NED frame; apply
+                # its calibrated offset to land in the shared world frame (Z
+                # origin is common across vehicles, only X/Y differ).
                 T = airsim_pose_to_matrix(data.pose)
                 pts = pts @ T[:3, :3].T + T[:3, 3]
-                sx, sy = SPAWNS[drone]
-                pts[:, 0] += sx
-                pts[:, 1] += sy
+                dx, dy = offsets[drone]
+                pts[:, 0] += dx
+                pts[:, 1] += dy
 
                 merged = np.vstack([map_pts[drone], pts])
                 pcd = o3d.geometry.PointCloud()
