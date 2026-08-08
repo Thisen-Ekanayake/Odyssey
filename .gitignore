@@ -14,3 +14,6 @@ datasets/
 datasets_synth/
 datasets_square/
 results/
+
+# per-run window captures + rendered videos from tools/window_recorder.py
+recordings/

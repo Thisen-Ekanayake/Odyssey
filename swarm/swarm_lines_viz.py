@@ -22,14 +22,19 @@ os.environ.setdefault("DISPLAY", ":1")
 os.environ["XDG_SESSION_TYPE"] = "x11"
 
 import math
+import sys
 import threading
 import time
+from pathlib import Path
 
 import numpy as np
 import airsim
 import open3d as o3d
 import open3d.visualization.gui as gui  # type: ignore
 import open3d.visualization.rendering as rendering  # type: ignore
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools import window_recorder  # noqa: E402,F401
 
 from swarm_comms import DRONES, SPAWNS, SwarmPositions
 

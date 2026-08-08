@@ -27,11 +27,16 @@ it does not search for a road to begin with, only to reacquire one it loses.
 Press 'q' in the debug window (or Ctrl+C) to land and exit.
 """
 import argparse
+import sys
 import time
+from pathlib import Path
 
 import airsim
 import cv2
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools import window_recorder  # noqa: E402,F401
 
 DRONE = "Drone1"
 CAMERA = "3"        # bottom_center -- looks straight down

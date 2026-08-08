@@ -42,6 +42,7 @@ import open3d as o3d  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from slam.config import REPO_ROOT  # noqa: E402
 from slam.geometry import read_tum  # noqa: E402
+from tools import window_recorder  # noqa: E402,F401
 
 OUT_ROOT = REPO_ROOT / "datasets_square"
 TRAJECTORY_COLOR = (1.0, 0.15, 0.15)

@@ -54,6 +54,7 @@ import open3d.visualization.rendering as rendering  # type: ignore
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from slam.geometry import airsim_pose_to_matrix  # noqa: E402
+from tools import window_recorder  # noqa: E402,F401
 
 from swarm_comms import DRONES, SPAWNS, SwarmPositions
 import swarm_converge

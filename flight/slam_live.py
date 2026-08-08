@@ -48,6 +48,8 @@ from slam.lidar_slam import LidarInertialSLAM  # noqa: E402
 from slam.source import LiveSource  # noqa: E402
 from slam.stereo_slam import StereoInertialSLAM  # noqa: E402
 
+from tools import window_recorder  # noqa: E402,F401
+
 RATE_HZ = 10.0
 MAP_REFRESH_EVERY = 5        # SLAM frames between map redraws
 

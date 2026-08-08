@@ -41,13 +41,18 @@ Run after the sim is up:
 
 Press 'q' in the video window (or Ctrl+C) to land and exit.
 """
+import sys
 import threading
+from pathlib import Path
 
 import airsim
 import cv2
 import numpy as np
 import torch
 from transformers import Sam3VideoModel, Sam3VideoProcessor
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools import window_recorder  # noqa: E402,F401
 
 DRONE = "Drone1"
 CAMERA = "0"      # front-center FPV camera (vehicle-mounted, not ChaseCam)
