@@ -27,7 +27,8 @@ The map window has a rotation panel in its top-right corner (Desmos-style
 360°" checkbox for a continuous spin animation, and a "Speed" slider
 (deg/s) for that animation's rate. Orbits a fixed elevation/radius around
 the formation's center -- dragging the slider or the animation both just
-change the azimuth angle fed to the same camera.look_at() call.
+change the azimuth angle fed to the same camera.look_at() call. Lives in
+tools/scene_rotation.py, shared with the other LiDAR/SLAM map viewers.
 
 Run after the sim is up (restart required after the settings.json change
 that added ChaseCam2-4):
@@ -54,6 +55,7 @@ import open3d.visualization.rendering as rendering  # type: ignore
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from slam.geometry import airsim_pose_to_matrix  # noqa: E402
+from tools import scene_rotation  # noqa: E402
 from tools import window_recorder  # noqa: E402,F401
 
 from swarm_comms import DRONES, SPAWNS, SwarmPositions
@@ -99,12 +101,6 @@ HEIGHT_GRADIENT_LIGHT = 0.85       # blend fraction toward white at the bright e
 
 CAM_WIN_SIZE = (640, 360)
 MAP_WIN_SIZE = (900, 700)
-
-# --- map-view rotation control (top-right corner panel) ---
-ROTATE_PANEL_SIZE = (230, 160)
-DEFAULT_ELEVATION_DEG = 35.0   # fixed pitch of the orbit; azimuth is what rotates
-DEFAULT_ROTATE_SPEED = 20.0    # deg/s for the auto-rotate animation
-ROTATE_HZ = 20                 # animation tick rate
 
 
 def _height_gradient_colors(base_color, z: np.ndarray) -> np.ndarray:
@@ -172,29 +168,15 @@ class SwarmViewer:
             [max(xs) + margin, max(ys) + margin, 5.0],
         )
         self.map_widget.setup_camera(60.0, bounds, bounds.get_center())
-
-        # --- orbit-camera state for the rotate panel ---
-        # radius sized off the XY footprint (much larger than the Z range)
-        # so the whole formation stays framed at any azimuth.
-        extent = bounds.get_extent()
-        self._map_center = tuple(bounds.get_center())
-        self._orbit_radius = 0.9 * math.hypot(extent[0], extent[1])
-        self._elevation_deg = DEFAULT_ELEVATION_DEG
-        self._azimuth_deg = 0.0
-        self._auto_rotate = False
-        self._rotate_speed = DEFAULT_ROTATE_SPEED
-
-        self._build_rotate_panel()
-        self._apply_azimuth(self._azimuth_deg)   # own consistent initial view, not setup_camera's default
+        self.rotation = scene_rotation.RotationPanel(
+            self.map_win, self.map_widget, bounds, is_running=lambda: self._running)
 
         self.map_win.set_on_layout(self._map_layout)
 
-        # Background pollers: one LiDAR-merge thread, one per-drone chase-cam thread,
-        # one for the auto-rotate animation.
+        # Background pollers: one LiDAR-merge thread, one per-drone chase-cam thread.
         threading.Thread(target=self._poll_lidar, daemon=True).start()
         for drone, cam in CHASE_CAMS.items():
             threading.Thread(target=self._poll_chase_cam, args=(drone, cam), daemon=True).start()
-        threading.Thread(target=self._rotate_loop, daemon=True).start()
 
     # ---- window plumbing --------------------------------------------------
 
@@ -207,92 +189,11 @@ class SwarmViewer:
     def _map_layout(self, _):
         r = self.map_win.content_rect
         self.map_widget.frame = gui.Rect(r.x, r.y, r.width, r.height)
-        margin = 10
-        pw, ph = ROTATE_PANEL_SIZE
-        self.rotate_panel.frame = gui.Rect(
-            r.x + r.width - pw - margin, r.y + margin, pw, ph)
+        self.rotation.layout(self.map_widget.frame)
 
     def _on_close(self):
         self._running = False
         return True
-
-    # ---- map-view rotation: manual slider + auto-rotate animation ---------
-
-    def _build_rotate_panel(self):
-        em = self.map_win.theme.font_size
-        panel = gui.Vert(0.4 * em, gui.Margins(0.5 * em, 0.5 * em, 0.5 * em, 0.5 * em))
-        panel.background_color = gui.Color(0.1, 0.1, 0.1, 0.75)
-
-        panel.add_child(gui.Label("View Rotation"))
-
-        self.azimuth_slider = gui.Slider(gui.Slider.DOUBLE)
-        self.azimuth_slider.set_limits(0.0, 360.0)
-        self.azimuth_slider.double_value = self._azimuth_deg
-        self.azimuth_slider.set_on_value_changed(self._on_azimuth_changed)
-        panel.add_child(gui.Label("Rotate (drag)"))
-        panel.add_child(self.azimuth_slider)
-
-        self.auto_rotate_checkbox = gui.Checkbox("Auto-rotate 360°")
-        self.auto_rotate_checkbox.set_on_checked(self._on_auto_rotate_toggled)
-        panel.add_child(self.auto_rotate_checkbox)
-
-        self.speed_slider = gui.Slider(gui.Slider.DOUBLE)
-        self.speed_slider.set_limits(1.0, 90.0)
-        self.speed_slider.double_value = self._rotate_speed
-        self.speed_slider.set_on_value_changed(self._on_speed_changed)
-        panel.add_child(gui.Label("Speed (deg/s)"))
-        panel.add_child(self.speed_slider)
-
-        self.rotate_panel = panel
-        self.map_win.add_child(panel)
-
-    def _camera_vectors(self, azimuth_deg: float):
-        """(center, eye, up) for an orbit camera at the given azimuth, fixed
-        elevation/radius -- eye moves on a circle around the map center."""
-        az = math.radians(azimuth_deg)
-        el = math.radians(self._elevation_deg)
-        horiz = self._orbit_radius * math.cos(el)
-        height = self._orbit_radius * math.sin(el)
-        cx, cy, cz = self._map_center
-        center = np.array([cx, cy, cz], dtype=np.float32)
-        eye = np.array([
-            cx + horiz * math.cos(az),
-            cy + horiz * math.sin(az),
-            cz - height,   # NED: -Z is up
-        ], dtype=np.float32)
-        up = np.array([0.0, 0.0, -1.0], dtype=np.float32)
-        return center, eye, up
-
-    def _apply_azimuth(self, azimuth_deg: float):
-        center, eye, up = self._camera_vectors(azimuth_deg)
-        self.map_widget.scene.camera.look_at(center, eye, up)
-
-    def _on_azimuth_changed(self, value):
-        self._azimuth_deg = value
-        self._apply_azimuth(value)
-
-    def _on_auto_rotate_toggled(self, checked):
-        self._auto_rotate = checked
-
-    def _on_speed_changed(self, value):
-        self._rotate_speed = value
-
-    def _rotate_loop(self):
-        """Background tick for the auto-rotate animation; a no-op spin while
-        _auto_rotate is off. GUI mutation is marshaled to the main thread,
-        same as the LiDAR/chase-cam pollers."""
-        dt = 1.0 / ROTATE_HZ
-        while self._running:
-            if self._auto_rotate:
-                self._azimuth_deg = (self._azimuth_deg + self._rotate_speed * dt) % 360.0
-                az = self._azimuth_deg
-
-                def _update(az=az):
-                    self._apply_azimuth(az)
-                    self.azimuth_slider.double_value = az
-
-                gui.Application.instance.post_to_main_thread(self.map_win, _update)
-            time.sleep(dt)
 
     def quit(self):
         def _do_quit():

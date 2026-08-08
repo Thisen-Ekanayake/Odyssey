@@ -12,6 +12,7 @@ Offline/utility scripts — none of these fly a drone maneuver of their own.
 | `view_square_map.py` | interactive Open3D viewer over a `flight/square_capture_map.py` recording |
 | `densify_map.py` | K-nearest-neighbor gap-filling over a `flight/square_capture_map.py` map |
 | `window_recorder.py` | not run directly — imported for its side effect. See below. |
+| `scene_rotation.py` | not run directly — imported by LiDAR/SLAM map viewers. See below. |
 
 ## Run
 
@@ -54,3 +55,28 @@ plus `ffmpeg` and ImageMagick's `import` on `PATH`; missing any of them just dis
 for that run rather than breaking the script. 30 fps is a deliberate choice, not a default that
 happened to be there — see the comment above `FPS` in `window_recorder.py` before raising it,
 since window capture reads pixels back off the same GPU AirSim's UE4 renderer is using.
+
+## `scene_rotation.py` — shared map-rotation panel
+
+`RotationPanel` is the top-right "Desmos-style" 3D-view control (manual azimuth slider,
+"Auto-rotate 360°" checkbox, speed slider, orbiting a fixed elevation/radius around a scene's
+center) that originally lived only in `swarm_converge_viz.py`. Construct it right after a
+SceneWidget's own `setup_camera()` call, then call `.layout(rect)` from that window's
+`set_on_layout` once the widget's own frame is set:
+
+```python
+self.rotation = scene_rotation.RotationPanel(
+    self.win, self.widget, bounds, is_running=lambda: self._running)
+...
+self.rotation.layout(self.widget.frame)   # in set_on_layout, after widget.frame is set
+```
+
+Wired into every SceneWidget that shows sensor-derived data — a LiDAR point-cloud map or a SLAM
+map: `flight/lidar_viz.py`, `flight/slam_live.py` (the map panel only, not the estimated-vs-GT
+trajectory panel), `swarm/swarm_converge_viz.py`, `swarm/swarm_edge_to_center_viz.py` (the
+merged LiDAR map window only, not the edge-to-center segmentation-lines window). Deliberately
+**not** wired into chase-cam feeds (plain image widgets, no camera to orbit) or into
+formation-geometry-only scenes with no sensor data (`swarm/swarm_lines_viz.py`, and the
+segmentation-lines widget inside `swarm_edge_to_center_viz.py`). `tools/view_square_map.py` also
+doesn't get it — it uses the older `o3d.visualization.Visualizer` API, not the `gui.Application`/
+`SceneWidget` framework this panel attaches to, and already has its own mouse-drag orbit.

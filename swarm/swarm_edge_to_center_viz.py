@@ -59,6 +59,7 @@ import open3d.visualization.rendering as rendering  # type: ignore
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from slam.geometry import airsim_pose_to_matrix  # noqa: E402
+from tools import scene_rotation  # noqa: E402
 from tools import window_recorder  # noqa: E402,F401
 
 from swarm_comms import DRONES, SPAWNS, SwarmPositions
@@ -192,6 +193,11 @@ class EdgeToCenterViewer:
         map_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=5.0)
         self.map_widget.scene.add_geometry("frame", map_frame, frame_mat)
         self.map_widget.setup_camera(60.0, bounds, bounds.get_center())
+        # Rotation control on the LiDAR map only -- self.widget (the
+        # edge-to-center segmentation lines) is computed geometry, not
+        # sensor data.
+        self.rotation = scene_rotation.RotationPanel(
+            self.map_win, self.map_widget, bounds, is_running=lambda: self._running)
 
         threading.Thread(target=self._poll, daemon=True).start()
         threading.Thread(target=self._poll_lidar, daemon=True).start()
@@ -211,6 +217,7 @@ class EdgeToCenterViewer:
     def _map_layout(self, _):
         r = self.map_win.content_rect
         self.map_widget.frame = gui.Rect(r.x, r.y, r.width, r.height)
+        self.rotation.layout(self.map_widget.frame)
 
     def _on_close(self):
         self._running = False

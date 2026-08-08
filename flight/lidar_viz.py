@@ -51,6 +51,7 @@ import open3d.visualization.rendering as rendering  # type: ignore
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from slam.geometry import airsim_pose_to_matrix  # noqa: E402
+from tools import scene_rotation  # noqa: E402
 from tools import window_recorder  # noqa: E402,F401
 
 from autonomous_navigate import DRONE, ALTITUDE, SPEED
@@ -124,6 +125,8 @@ class LidarViewer:
             [150.0, margin, 5],
         )
         self.widget.setup_camera(60.0, bounds, bounds.get_center())
+        self.rotation = scene_rotation.RotationPanel(
+            self.win, self.widget, bounds, is_running=lambda: self._running)
 
         self.win.set_on_layout(self._on_layout)
         self.win.set_on_close(self._on_close)
@@ -139,6 +142,7 @@ class LidarViewer:
         half_w = r.width // 2
         self.image_widget.frame = gui.Rect(r.x, r.y, half_w, r.height)
         self.widget.frame = gui.Rect(r.x + half_w, r.y, r.width - half_w, r.height)
+        self.rotation.layout(self.widget.frame)
 
     def _on_close(self):
         self._running = False

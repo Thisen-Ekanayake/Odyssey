@@ -48,6 +48,7 @@ from slam.lidar_slam import LidarInertialSLAM  # noqa: E402
 from slam.source import LiveSource  # noqa: E402
 from slam.stereo_slam import StereoInertialSLAM  # noqa: E402
 
+from tools import scene_rotation  # noqa: E402
 from tools import window_recorder  # noqa: E402,F401
 
 RATE_HZ = 10.0
@@ -133,6 +134,12 @@ class SlamViewer:
         self.win.add_child(self.map_widget)
         self.win.add_child(self.traj_widget)
 
+        # Rotation control on the map panel only -- traj_widget is a plot of
+        # estimated-vs-ground-truth trajectory lines, not sensor data.
+        map_bounds = o3d.geometry.AxisAlignedBoundingBox([-40, -40, -30], [180, 140, 10])
+        self.rotation = scene_rotation.RotationPanel(
+            self.win, self.map_widget, map_bounds, is_running=lambda: self._running)
+
         self.pt_mat = rendering.MaterialRecord()
         self.pt_mat.shader = "defaultUnlit"
         self.pt_mat.point_size = point_size * self.win.scaling
@@ -169,6 +176,7 @@ class SlamViewer:
         self.map_widget.frame = gui.Rect(r.x + third, r.y, third, r.height)
         self.traj_widget.frame = gui.Rect(r.x + 2 * third, r.y,
                                           r.width - 2 * third, r.height)
+        self.rotation.layout(self.map_widget.frame)
 
     def _on_close(self):
         self._running = False
