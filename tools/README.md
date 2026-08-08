@@ -13,6 +13,9 @@ Offline/utility scripts — none of these fly a drone maneuver of their own.
 | `densify_map.py` | K-nearest-neighbor gap-filling over a `flight/square_capture_map.py` map |
 | `window_recorder.py` | not run directly — imported for its side effect. See below. |
 | `scene_rotation.py` | not run directly — imported by LiDAR/SLAM map viewers. See below. |
+| `render_frames.sh` | manual retry: renders `<run-dir>/<N>/frame_*.jpg` folders into `<N>.mp4` |
+| `merge_clips.py` | merges 5 clips into one 1920x1440 grid (1 large + 4 small) via ffmpeg |
+| `to_gif.sh` | converts an mp4 to a high-quality GIF via two-pass ffmpeg palette (palettegen/paletteuse) |
 
 ## Run
 
@@ -24,7 +27,7 @@ Offline/utility scripts — none of these fly a drone maneuver of their own.
 
 - Needs the sim up: `probe_setup.py`, `spawn_traffic.py`.
 - Fully offline (no sim needed): `run_benchmark.py`, `verify_dataset.py`, `synthetic_dataset.py`,
-  `view_square_map.py`, `densify_map.py`.
+  `view_square_map.py`, `densify_map.py`, `render_frames.sh`, `merge_clips.py`, `to_gif.sh`.
 - `view_square_map.py`/`densify_map.py` default to the latest run under `datasets_square/` — pass
   `--dir <path>` to target a specific one.
 
