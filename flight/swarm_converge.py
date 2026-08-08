@@ -45,9 +45,12 @@ VEL_CMD_DURATION = 0.3      # > DT for continuity, matches swarm_circle.py's con
 CLIMB_SPEED = 3.0           # m/s used for the initial climb to ALTITUDE
 
 
-def main() -> None:
-    client = airsim.MultirotorClient()
-    client.confirmConnection()
+def run(client: airsim.MultirotorClient) -> None:
+    """Fly the full converge-and-land maneuver on an already-connected client.
+
+    Split out from main() so other scripts (e.g. swarm_converge_viz.py) can
+    drive this in a background thread alongside their own use of the client.
+    """
     print(f"Connected. Swarm: {', '.join(DRONES)}")
 
     for d in DRONES:
@@ -135,6 +138,12 @@ def main() -> None:
         client.armDisarm(False, d)
         client.enableApiControl(False, d)
     print("Done.")
+
+
+def main() -> None:
+    client = airsim.MultirotorClient()
+    client.confirmConnection()
+    run(client)
 
 
 if __name__ == "__main__":

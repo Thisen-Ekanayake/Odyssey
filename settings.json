@@ -18,6 +18,18 @@
     "ChaseCam": {
       "X": 0, "Y": -8, "Z": -11,
       "Pitch": -20, "Roll": 0, "Yaw": 0
+    },
+    "ChaseCam2": {
+      "X": 0, "Y": -8, "Z": -11,
+      "Pitch": -20, "Roll": 0, "Yaw": 0
+    },
+    "ChaseCam3": {
+      "X": 0, "Y": -8, "Z": -11,
+      "Pitch": -20, "Roll": 0, "Yaw": 0
+    },
+    "ChaseCam4": {
+      "X": 0, "Y": -8, "Z": -11,
+      "Pitch": -20, "Roll": 0, "Yaw": 0
     }
   },
   "Vehicles": {
