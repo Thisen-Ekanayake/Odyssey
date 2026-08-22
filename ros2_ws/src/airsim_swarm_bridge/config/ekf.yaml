@@ -1,0 +1,52 @@
+# robot_localization EKF: smooths icp_odometry with the IMU.
+#
+# What this is for: ICP odometry updates at the LiDAR's 10 Hz and occasionally
+# stalls on a sparse sweep. The IMU runs at 100 Hz. Fusing them gives a
+# continuous, higher-rate odom -> base_link and rides over the gaps.
+#
+# It does NOT correct drift -- there is no absolute reference here (GPS is
+# published but deliberately not fused; the point of the study is SLAM, and
+# feeding GPS in would quietly turn the ATE into a measure of GPS quality).
+
+ekf_filter_node:
+  ros__parameters:
+    frequency: 50.0
+    sensor_timeout: 0.2
+    two_d_mode: false                # a drone is 6-DoF; see rtabmap_lidar.yaml
+    publish_tf: true
+    print_diagnostics: true
+
+    map_frame: "map"
+    odom_frame: "drone1/odom"
+    base_link_frame: "drone1/base_link"
+    world_frame: "drone1/odom"       # odom-frame EKF: continuous, not globally
+                                     # consistent. rtabmap owns map -> odom.
+
+    odom0: "/odom"                   # icp_odometry output
+    # x y z, roll pitch yaw, vx vy vz, vroll vpitch vyaw, ax ay az
+    odom0_config: [true,  true,  true,
+                   true,  true,  true,
+                   false, false, false,
+                   false, false, false,
+                   false, false, false]
+    odom0_differential: false
+    odom0_relative: false
+    odom0_queue_size: 10
+
+    imu0: "/drone1/imu"
+    # Angular velocity and linear acceleration only. Orientation is NOT fused:
+    # AirSim reports true attitude on the IMU, and taking it would leak ground
+    # truth into an estimate whose whole purpose is to be scored against it.
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  true,  true,  true,
+                  true,  true,  false]
+    imu0_differential: false
+    imu0_relative: false
+    imu0_queue_size: 50
+    imu0_remove_gravitational_acceleration: true
+
+    process_noise_covariance: [0.05, 0.05, 0.06, 0.03, 0.03, 0.06,
+                               0.025, 0.025, 0.04, 0.01, 0.01, 0.02,
+                               0.01, 0.01, 0.015]

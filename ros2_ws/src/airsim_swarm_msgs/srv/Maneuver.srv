@@ -1,0 +1,21 @@
+# Trigger one of the existing swarm/ manoeuvres.
+#
+# The manoeuvre code itself is NOT reimplemented here -- the node imports
+# swarm/swarm_edge_to_center.py and swarm/swarm_converge.py and calls their
+# run(client) entry points, so ROS and the standalone scripts always fly the
+# same thing.
+
+# One of: takeoff | land | hover | edge_to_center | converge
+string name
+
+# Optional overrides; <= 0 means "use the manoeuvre's own default".
+float64 altitude          # metres above ground (positive up)
+float64 speed             # m/s
+
+# If true, return as soon as the manoeuvre starts instead of waiting it out.
+# A full edge_to_center run takes minutes, which most service clients will
+# time out on.
+bool background
+---
+bool success
+string message

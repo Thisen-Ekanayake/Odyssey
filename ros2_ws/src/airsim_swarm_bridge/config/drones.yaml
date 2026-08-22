@@ -1,0 +1,30 @@
+# Per-drone bridge settings. Names MUST match settings.json's Vehicles block --
+# AirSim only reads settings.json at startup, so adding a drone here without
+# restarting scripts/run_swarm.sh gets you a node that connects and then finds no
+# such vehicle (bridge_node checks listVehicles and says so).
+#
+# Rates are deliberately unequal. simGetImages is by far the most expensive RPC:
+# four drones x two cameras at 10 Hz will not keep up, and the queue backs up into
+# the LiDAR timer. 5 Hz stereo leaves headroom; drop enable_stereo for drones you
+# are not looking at and the LiDAR/IMU streams get noticeably steadier.
+
+/**:
+  ros__parameters:
+    host: "127.0.0.1"
+    port: 41451
+
+    imu_rate: 100.0        # matches slam/config.py IMU_RATE_HZ
+    lidar_rate: 10.0       # matches settings.json RotationsPerSecond
+    stereo_rate: 5.0       # the expensive one -- see above
+    odom_rate: 50.0
+
+    enable_lidar: true
+    enable_stereo: true
+    enable_gps: true
+
+    # True: this bridge publishes ground truth on TF's odom -> base_link edge.
+    # The SLAM launch files override this to false so icp_odometry can own that
+    # edge; ground truth then goes to <ns>/base_link_gt instead.
+    gt_owns_base_link: true
+
+    path_max_poses: 5000

@@ -1,0 +1,369 @@
+Panels:
+- Class: rviz_common/Displays
+  Name: Displays
+  Property Tree Widget:
+    Expanded:
+    - /Global Options1
+    Splitter Ratio: 0.5
+  Tree Height: 700
+- Class: rviz_common/Views
+  Name: Views
+  Expanded:
+  - ''
+  Splitter Ratio: 0.5
+Visualization Manager:
+  Class: ''
+  Name: root
+  Displays:
+  - Class: rviz_default_plugins/Grid
+    Name: Grid
+    Enabled: true
+    Cell Size: 10
+    Plane Cell Count: 40
+    Color: 160; 160; 164
+    Alpha: 0.3
+    Line Style:
+      Line Width: 0.03
+      Value: Lines
+    Normal Cell Count: 0
+    Offset:
+      X: 0
+      Y: 0
+      Z: 0
+    Plane: XY
+    Reference Frame: <Fixed Frame>
+  - Class: rviz_default_plugins/TF
+    Name: TF
+    Enabled: true
+    Show Names: true
+    Show Axes: true
+    Show Arrows: false
+    Marker Scale: 8
+    Update Interval: 0
+    Frame Timeout: 15
+    Filter (whitelist): []
+    Filter (blacklist): []
+    Tree: {}
+    Frames:
+      All Enabled: true
+  - Class: rviz_default_plugins/PointCloud2
+    Name: drone1 lidar
+    Enabled: true
+    Topic:
+      Value: /drone1/lidar/points
+      Depth: 5
+      Durability Policy: Volatile
+      Reliability Policy: Best Effort
+      History Policy: Keep Last
+      Filter size: 10
+    Style: Flat Squares
+    Size (m): 0.25
+    Alpha: 1
+    Decay Time: 0
+    Position Transformer: XYZ
+    Color Transformer: FlatColor
+    Color: 242; 66; 54
+    Queue Size: 10
+    Selectable: true
+    Use Fixed Frame: true
+    Use rainbow: true
+    Invert Rainbow: false
+    Autocompute Intensity Bounds: true
+    Min Color: 0; 0; 0
+    Max Color: 255; 255; 255
+  - Class: rviz_default_plugins/PointCloud2
+    Name: drone2 lidar
+    Enabled: true
+    Topic:
+      Value: /drone2/lidar/points
+      Depth: 5
+      Durability Policy: Volatile
+      Reliability Policy: Best Effort
+      History Policy: Keep Last
+      Filter size: 10
+    Style: Flat Squares
+    Size (m): 0.25
+    Alpha: 1
+    Decay Time: 0
+    Position Transformer: XYZ
+    Color Transformer: FlatColor
+    Color: 76; 176; 79
+    Queue Size: 10
+    Selectable: true
+    Use Fixed Frame: true
+    Use rainbow: true
+    Invert Rainbow: false
+    Autocompute Intensity Bounds: true
+    Min Color: 0; 0; 0
+    Max Color: 255; 255; 255
+  - Class: rviz_default_plugins/PointCloud2
+    Name: drone3 lidar
+    Enabled: true
+    Topic:
+      Value: /drone3/lidar/points
+      Depth: 5
+      Durability Policy: Volatile
+      Reliability Policy: Best Effort
+      History Policy: Keep Last
+      Filter size: 10
+    Style: Flat Squares
+    Size (m): 0.25
+    Alpha: 1
+    Decay Time: 0
+    Position Transformer: XYZ
+    Color Transformer: FlatColor
+    Color: 63; 117; 242
+    Queue Size: 10
+    Selectable: true
+    Use Fixed Frame: true
+    Use rainbow: true
+    Invert Rainbow: false
+    Autocompute Intensity Bounds: true
+    Min Color: 0; 0; 0
+    Max Color: 255; 255; 255
+  - Class: rviz_default_plugins/PointCloud2
+    Name: drone4 lidar
+    Enabled: true
+    Topic:
+      Value: /drone4/lidar/points
+      Depth: 5
+      Durability Policy: Volatile
+      Reliability Policy: Best Effort
+      History Policy: Keep Last
+      Filter size: 10
+    Style: Flat Squares
+    Size (m): 0.25
+    Alpha: 1
+    Decay Time: 0
+    Position Transformer: XYZ
+    Color Transformer: FlatColor
+    Color: 255; 193; 7
+    Queue Size: 10
+    Selectable: true
+    Use Fixed Frame: true
+    Use rainbow: true
+    Invert Rainbow: false
+    Autocompute Intensity Bounds: true
+    Min Color: 0; 0; 0
+    Max Color: 255; 255; 255
+  - Class: rviz_default_plugins/Path
+    Name: drone1 ground truth
+    Enabled: true
+    Topic:
+      Value: /drone1/path_gt
+      Depth: 1
+      Durability Policy: Volatile
+      Reliability Policy: Reliable
+      History Policy: Keep Last
+      Filter size: 10
+    Color: 242; 66; 54
+    Alpha: 1
+    Line Style: Lines
+    Line Width: 0.3
+    Buffer Length: 1
+    Offset:
+      X: 0
+      Y: 0
+      Z: 0
+    Pose Style: None
+    Head Diameter: 0.3
+    Head Length: 0.2
+    Shaft Diameter: 0.1
+    Shaft Length: 0.1
+    Radius: 0.03
+  - Class: rviz_default_plugins/Path
+    Name: drone2 ground truth
+    Enabled: true
+    Topic:
+      Value: /drone2/path_gt
+      Depth: 1
+      Durability Policy: Volatile
+      Reliability Policy: Reliable
+      History Policy: Keep Last
+      Filter size: 10
+    Color: 76; 176; 79
+    Alpha: 1
+    Line Style: Lines
+    Line Width: 0.3
+    Buffer Length: 1
+    Offset:
+      X: 0
+      Y: 0
+      Z: 0
+    Pose Style: None
+    Head Diameter: 0.3
+    Head Length: 0.2
+    Shaft Diameter: 0.1
+    Shaft Length: 0.1
+    Radius: 0.03
+  - Class: rviz_default_plugins/Path
+    Name: drone3 ground truth
+    Enabled: true
+    Topic:
+      Value: /drone3/path_gt
+      Depth: 1
+      Durability Policy: Volatile
+      Reliability Policy: Reliable
+      History Policy: Keep Last
+      Filter size: 10
+    Color: 63; 117; 242
+    Alpha: 1
+    Line Style: Lines
+    Line Width: 0.3
+    Buffer Length: 1
+    Offset:
+      X: 0
+      Y: 0
+      Z: 0
+    Pose Style: None
+    Head Diameter: 0.3
+    Head Length: 0.2
+    Shaft Diameter: 0.1
+    Shaft Length: 0.1
+    Radius: 0.03
+  - Class: rviz_default_plugins/Path
+    Name: drone4 ground truth
+    Enabled: true
+    Topic:
+      Value: /drone4/path_gt
+      Depth: 1
+      Durability Policy: Volatile
+      Reliability Policy: Reliable
+      History Policy: Keep Last
+      Filter size: 10
+    Color: 255; 193; 7
+    Alpha: 1
+    Line Style: Lines
+    Line Width: 0.3
+    Buffer Length: 1
+    Offset:
+      X: 0
+      Y: 0
+      Z: 0
+    Pose Style: None
+    Head Diameter: 0.3
+    Head Length: 0.2
+    Shaft Diameter: 0.1
+    Shaft Length: 0.1
+    Radius: 0.03
+  - Class: rviz_default_plugins/MarkerArray
+    Name: formation (quad + 4-square cuts)
+    Enabled: true
+    Topic:
+      Value: /swarm/formation_markers
+      Depth: 5
+      Durability Policy: Volatile
+      Reliability Policy: Reliable
+      History Policy: Keep Last
+      Filter size: 10
+    Namespaces: {}
+  - Class: rviz_default_plugins/Image
+    Name: drone1 left cam
+    Enabled: true
+    Topic:
+      Value: /drone1/stereo/left/image_raw
+      Depth: 2
+      Durability Policy: Volatile
+      Reliability Policy: Best Effort
+      History Policy: Keep Last
+      Filter size: 10
+    Max Value: 1
+    Min Value: 0
+    Median window: 5
+    Normalize Range: true
+    Transport Hint: raw
+    Queue Size: 2
+  - Class: rviz_default_plugins/Image
+    Name: drone2 left cam
+    Enabled: false
+    Topic:
+      Value: /drone2/stereo/left/image_raw
+      Depth: 2
+      Durability Policy: Volatile
+      Reliability Policy: Best Effort
+      History Policy: Keep Last
+      Filter size: 10
+    Max Value: 1
+    Min Value: 0
+    Median window: 5
+    Normalize Range: true
+    Transport Hint: raw
+    Queue Size: 2
+  - Class: rviz_default_plugins/Image
+    Name: drone3 left cam
+    Enabled: false
+    Topic:
+      Value: /drone3/stereo/left/image_raw
+      Depth: 2
+      Durability Policy: Volatile
+      Reliability Policy: Best Effort
+      History Policy: Keep Last
+      Filter size: 10
+    Max Value: 1
+    Min Value: 0
+    Median window: 5
+    Normalize Range: true
+    Transport Hint: raw
+    Queue Size: 2
+  - Class: rviz_default_plugins/Image
+    Name: drone4 left cam
+    Enabled: false
+    Topic:
+      Value: /drone4/stereo/left/image_raw
+      Depth: 2
+      Durability Policy: Volatile
+      Reliability Policy: Best Effort
+      History Policy: Keep Last
+      Filter size: 10
+    Max Value: 1
+    Min Value: 0
+    Median window: 5
+    Normalize Range: true
+    Transport Hint: raw
+    Queue Size: 2
+  Enabled: true
+  Global Options:
+    Background Color: 26; 26; 30
+    Fixed Frame: map
+    Frame Rate: 30
+    Default Light: true
+  Tools:
+  - Class: rviz_default_plugins/MoveCamera
+  - Class: rviz_default_plugins/FocusCamera
+  - Class: rviz_default_plugins/Measure
+    Line color: 128; 128; 0
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Orbit
+      Distance: 400
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Pitch: 0.9
+      Yaw: 0.8
+      Target Frame: <Fixed Frame>
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.06
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Near Clip Distance: 0.01
+    Saved: []
+  Window Geometry:
+    Height: 1000
+    Width: 1700
+    Hide Left Dock: false
+    Hide Right Dock: false
+    Displays:
+      collapsed: false
+    Views:
+      collapsed: false
+    QMainWindow State: ''

@@ -1,0 +1,102 @@
+# rtabmap 3D LiDAR SLAM, tuned for a 16-channel scanner on a drone at altitude.
+#
+# Two nodes: icp_odometry estimates frame-to-frame motion, rtabmap builds the
+# graph and closes loops. This is the ROS-side estimator that gets compared
+# against slam/lidar_slam.py on identical recorded input -- see
+# tools/compare_ros_slam.py.
+#
+# The aerial case differs from the ground-robot defaults rtabmap ships with:
+#   * 6-DoF, so force_3dof stays false. A drone banks into turns and the roll it
+#     picks up is real motion, not noise to be projected away.
+#   * The scan is sparse and mostly looking DOWN (settings.json puts the vertical
+#     FOV at +15/-45), so ground-plane points dominate. Point-to-plane ICP is
+#     what keeps that from sliding laterally along the ground -- point-to-point
+#     is badly under-constrained on a flat surface.
+#   * At 50 m altitude consecutive sweeps overlap heavily, so the keyframe
+#     thresholds are set by distance travelled rather than by time.
+
+/**/icp_odometry:
+  ros__parameters:
+    frame_id: "drone1/base_link"
+    odom_frame_id: "drone1/odom"
+    publish_tf: true
+    wait_for_transform: 0.2
+    approx_sync: true
+    queue_size: 30
+
+    # Feed the IMU in as an orientation prior. It does not fix scale (LiDAR has
+    # scale already) but it stops the yaw drift that flat, self-similar terrain
+    # otherwise produces.
+    wait_imu_to_init: true
+    guess_frame_id: ""
+
+    Icp/PointToPlane: "true"
+    Icp/PointToPlaneK: "20"
+    Icp/PointToPlaneRadius: "0"        # use K neighbours, not a fixed radius
+    Icp/VoxelSize: "0.5"               # metres; 16-channel data is sparse enough
+    Icp/MaxTranslation: "3.0"          # a 10 Hz sweep at 3 m/s moves ~0.3 m
+    Icp/MaxCorrespondenceDistance: "2.0"
+    Icp/Iterations: "30"
+    Icp/Epsilon: "0.001"
+    Icp/CorrespondenceRatio: "0.2"
+    Icp/Strategy: "1"                  # libpointmatcher
+    Icp/OutlierRatio: "0.7"
+
+    Odom/Strategy: "0"                 # frame-to-map
+    Odom/ScanKeyFrameThr: "0.6"
+    Odom/GuessMotion: "true"
+    Odom/ResetCountdown: "1"           # re-init rather than sit lost
+    OdomF2M/ScanSubtractRadius: "0.5"
+    OdomF2M/ScanMaxSize: "20000"
+
+    Reg/Strategy: "1"                  # ICP only; there is no visual front end here
+    Reg/Force3DoF: "false"
+
+/**/rtabmap:
+  ros__parameters:
+    frame_id: "drone1/base_link"
+    odom_frame_id: "drone1/odom"
+    map_frame_id: "map"
+    subscribe_depth: false
+    subscribe_rgb: false
+    subscribe_scan_cloud: true
+    approx_sync: true
+    queue_size: 30
+    wait_for_transform: 0.2
+    database_path: "~/.ros/rtabmap_airsim.db"
+
+    Reg/Strategy: "1"
+    Reg/Force3DoF: "false"
+    Mem/NotLinkedNodesKept: "false"
+    Mem/STMSize: "30"
+    Mem/LaserScanNormalK: "20"
+
+    # Loop closure. There is no camera in this pipeline, so proximity-by-space is
+    # the only detector available: it proposes links between nodes that are close
+    # in the graph's own estimate and verifies them with ICP.
+    RGBD/ProximityBySpace: "true"
+    RGBD/ProximityMaxGraphDepth: "0"
+    RGBD/ProximityPathMaxNeighbors: "1"
+    RGBD/AngularUpdate: "0.05"
+    RGBD/LinearUpdate: "0.05"
+    RGBD/CreateOccupancyGrid: "true"
+    RGBD/OptimizeFromGraphEnd: "false"
+
+    Icp/PointToPlane: "true"
+    Icp/PointToPlaneK: "20"
+    Icp/VoxelSize: "0.5"
+    Icp/MaxCorrespondenceDistance: "2.0"
+    Icp/CorrespondenceRatio: "0.3"     # stricter than odometry: a false loop is
+                                       # far more damaging than a missed one
+
+    Optimizer/Strategy: "1"            # g2o
+    Optimizer/Robust: "true"
+    Optimizer/Iterations: "50"
+
+    Grid/3D: "true"
+    Grid/RayTracing: "true"
+    Grid/CellSize: "0.5"
+    Grid/RangeMax: "80.0"              # settings.json Range is 100 m; back off a
+                                       # little from the noisy far edge
+    Grid/MaxGroundHeight: "0.5"
+    Grid/ClusterRadius: "1.0"

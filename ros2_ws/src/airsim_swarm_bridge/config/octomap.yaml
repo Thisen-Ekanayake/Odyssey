@@ -1,0 +1,33 @@
+# octomap_server: a real 3D occupancy grid from the merged LiDAR, rather than a
+# raw point dump. Ray tracing is what makes it a map -- free space along each ray
+# is carved out, so the result distinguishes "empty" from "never observed".
+#
+# Resolution is a genuine trade: 0.5 m keeps a full AirSimNH flight in a few
+# hundred MB and renders smoothly in RViz. Drop it to 0.25 for detail and expect
+# roughly 8x the memory.
+
+octomap_server:
+  ros__parameters:
+    resolution: 0.5
+    frame_id: "map"
+    base_frame_id: "drone1/base_link"
+
+    sensor_model.max_range: 80.0     # matches Grid/RangeMax in rtabmap_lidar.yaml
+    sensor_model.hit: 0.7
+    sensor_model.miss: 0.4
+    sensor_model.min: 0.12
+    sensor_model.max: 0.97
+
+    # The drone flies well above the terrain, so ground filtering is off: at
+    # 50 m altitude the "ground" is the thing being mapped, not clutter.
+    filter_ground_plane: false
+    filter_speckles: true
+
+    # No occupancy_min_z/max_z here: octomap_server declares a floating-point
+    # range on those and a flight-envelope value like 120 m is rejected outright
+    # (the node aborts with "doesn't comply with floating point range"). The far
+    # returns they were meant to exclude are already bounded by
+    # sensor_model.max_range above.
+
+    publish_free_space: false        # halves the marker traffic to RViz
+    latch: false
