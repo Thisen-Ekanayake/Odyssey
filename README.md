@@ -77,3 +77,21 @@ Headless, end-to-end: multiple drones armed, flew a formation, and landed. LiDAR
 stereo-inertial SLAM both tracked a closed-loop circuit with sub-meter ATE before loop closure; see
 `docs/SLAM.md` for the numbers and for the one known-unstable piece (loop closure itself, currently
 stochastic across RANSAC seeds).
+
+## ROS 2
+
+A ROS 2 **Jazzy** layer lives in `ros2_ws/` and runs inside the `ros2` distrobox
+container. It bridges all four drones onto standard topics/TF, exposes the
+existing `swarm/` manoeuvres as services, and runs `rtabmap_ros` as an
+independent LiDAR-SLAM estimator that can be scored against this repo's own
+`slam/` package on identical recorded data.
+
+```bash
+distrobox enter ros2 -- /ml/airsim_swarm/scripts/ros_setup.sh   # one-time
+./scripts/run_swarm.sh AirSimNH                                  # terminal 1
+./scripts/ros_enter.sh ros2 launch airsim_swarm_bridge bridge.launch.py
+./scripts/ros_enter.sh ros2 launch airsim_swarm_bridge viz.launch.py
+```
+
+See [docs/ROS.md](docs/ROS.md) for the frame conventions, the SLAM comparison
+workflow, and why the `airsim` pip package cannot be installed in that container.
