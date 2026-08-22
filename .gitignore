@@ -17,3 +17,9 @@ results/
 
 # per-run window captures + rendered videos from tools/window_recorder.py
 recordings/
+
+# ROS 2 workspace build artefacts + converted rosbags
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+bags/
