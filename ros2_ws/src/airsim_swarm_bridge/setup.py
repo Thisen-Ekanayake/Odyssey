@@ -27,6 +27,7 @@ setup(
             "swarm_state_node = airsim_swarm_bridge.swarm_state_node:main",
             "maneuver_node = airsim_swarm_bridge.maneuver_node:main",
             "traj_recorder = airsim_swarm_bridge.traj_recorder_node:main",
+            "cloud_merger_node = airsim_swarm_bridge.cloud_merger_node:main",
             "dataset_to_rosbag = airsim_swarm_bridge.dataset_to_rosbag:main",
             "airsim_rpc_check = airsim_swarm_bridge.rpc:main",
         ],

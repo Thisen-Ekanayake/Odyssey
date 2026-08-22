@@ -91,6 +91,8 @@ distrobox enter ros2 -- /ml/airsim_swarm/scripts/ros_setup.sh   # one-time
 ./scripts/run_swarm.sh AirSimNH                                  # terminal 1
 ./scripts/ros_enter.sh ros2 launch airsim_swarm_bridge bridge.launch.py
 ./scripts/ros_enter.sh ros2 launch airsim_swarm_bridge viz.launch.py
+# live 4-drone cooperative mapping (all 4 LiDARs merged into one shared octomap):
+./scripts/ros_enter.sh ros2 launch airsim_swarm_bridge cooperative_mapping.launch.py
 ```
 
 See [docs/ROS.md](docs/ROS.md) for the frame conventions, the SLAM comparison

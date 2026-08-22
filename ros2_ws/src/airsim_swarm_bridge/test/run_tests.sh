@@ -49,6 +49,18 @@ MOCK_PORT="$PORT" "$REPO/scripts/ros_enter.sh" python3 "$TEST/test_swarm_reuse.p
 kill "$MOCK" 2>/dev/null
 wait "$MOCK" 2>/dev/null
 
+step "cooperative mapping (4-drone octomap geometry, ~45s)"
+"$REPO/airsim_venv/bin/python" "$TEST/mock_airsim_server.py" --port "$PORT" \
+    >/tmp/mock_airsim_server.log 2>&1 &
+MOCK=$!
+for _ in $(seq 20); do
+  (exec 3<>/dev/tcp/127.0.0.1/"$PORT") 2>/dev/null && break
+  sleep 0.25
+done
+MOCK_PORT="$PORT" "$REPO/scripts/ros_enter.sh" python3 "$TEST/test_cooperative_mapping.py" || FAILED=1
+kill "$MOCK" 2>/dev/null
+wait "$MOCK" 2>/dev/null
+
 if (( FAILED )); then
   printf '\n\033[1;31mSOME TESTS FAILED\033[0m\n'; exit 1
 fi

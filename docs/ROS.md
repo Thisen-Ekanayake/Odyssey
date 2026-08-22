@@ -145,6 +145,39 @@ one slow camera would otherwise stall the whole swarm.
 
 ---
 
+## Cooperative mapping (demo)
+
+```bash
+ros2 launch airsim_swarm_bridge cooperative_mapping.launch.py
+# or, one command that also flies a maneuver a few seconds after startup:
+ros2 launch airsim_swarm_bridge cooperative_mapping.launch.py auto_maneuver:=edge_to_center
+```
+
+Merges all four drones' LiDAR into one shared `octomap_server` instance and shows
+it live in RViz alongside the four colour-coded raw clouds and the formation
+markers -- the "4 drones building one map together" shot.
+
+`cloud_merger_node` is a pure **relay**, not a transform: it republishes each
+drone's cloud unchanged, keeping its own `droneN/lidar_link` frame id.
+`octomap_server` does its own per-message TF lookup and uses the resulting
+transform's translation as the ray-tracing sensor origin (confirmed against the
+installed binary -- it links `tf2_ros::MessageFilter<PointCloud2>` and
+`pcl_ros::transformPointCloud`, the standard octomap_server pattern). Four
+independently-posed frame ids arriving on one topic is no different to it than
+one frame moving over time, so no cross-drone synchronisation is needed either.
+Verified against the mock server: occupied voxels cluster tightly around each
+drone's true world position and nowhere near the map origin, confirming both
+the TF chain and the ray-tracing hookup are correct.
+
+This is cooperative **mapping**, not cooperative SLAM: poses come from ground
+truth (`gt_owns_base_link` stays true, since no SLAM node here needs the
+`odom -> base_link` edge). For "how well would N independently-estimated poses
+agree on one map", each drone needs its own SLAM front end -- a harder,
+different exercise from placing four known-good poses into one map.
+
+Recording it: `tools/window_recorder.py` captures the RViz window exactly as it
+does AirSim's own; `tools/to_gif.sh` turns the capture into a shareable clip.
+
 ## SLAM
 
 ```bash
@@ -222,6 +255,7 @@ half is which. Never report a weather comparison without saying so.
 | `…/swarm_state_node.py` | `/swarm/state` + formation markers |
 | `…/maneuver_node.py` | `/swarm/*` services wrapping the `swarm/` manoeuvres |
 | `…/traj_recorder_node.py` | odometry topic → TUM file |
+| `…/cloud_merger_node.py` | relays every drone's LiDAR onto one topic for a shared octomap |
 | `…/dataset_to_rosbag.py` | `datasets/<condition>/` → rosbag2 |
 | `tools/compare_ros_slam.py` | **host-side**; scores ROS estimates with `slam/evaluate.py` |
 

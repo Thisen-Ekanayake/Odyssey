@@ -46,6 +46,18 @@ Visualization Manager:
     Tree: {}
     Frames:
       All Enabled: true
+  - Class: octomap_rviz_plugins/OccupancyGrid
+    Name: cooperative map (octomap)
+    Enabled: true
+    Octomap Topic: /octomap_binary
+    Queue Size: 5
+    Max. Height Display: 1000
+    Min. Height Display: -1000
+    Max. Octree Depth: 16
+    Alpha: 0.8
+    Voxel Coloring: Z-Axis
+    Voxel Alpha: 1
+    Style: Boxes
   - Class: rviz_default_plugins/PointCloud2
     Name: drone1 lidar
     Enabled: true
