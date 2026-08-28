@@ -4,12 +4,37 @@
 #   ./scripts/run_swarm.sh Blocks          # pick another downloaded env by name
 #   HEADLESS=1 ./scripts/run_swarm.sh      # off-screen render, control via API only
 #   ENV_NAME=AirSimNH ./scripts/run_swarm.sh   # env can also be set via the ENV_NAME variable
+#   PROFILE=swarm ./scripts/run_swarm.sh   # low-res rig for the multi-drone demos
 # Any args after the env name are passed through to the UE4 binary.
+#
+# PROFILE picks which rig AirSim boots with. The two are NOT interchangeable and
+# the difference is load-bearing, not cosmetic:
+#
+#   slam  (default, settings.json)        1280x720 stereo + DepthPlanar, LiDAR 300k pts/s
+#         This is the rig slam/config.py mirrors and the rig datasets/ was recorded
+#         with. Anything that reads slam.config intrinsics -- record_dataset.py,
+#         slam_live.py, probe_setup.py -- needs this one, because fx is DERIVED from
+#         the width (config.py:44). Booting the swarm rig under it silently halves fx
+#         and stereo depth comes out 2x wrong.
+#
+#   swarm (settings.swarm.json)           640x360 stereo, LiDAR 100k pts/s
+#         Four drones rendering four chase cams is expensive enough to drag the sim
+#         clock well below real time, which breaks more than framerate: the ROS
+#         bridge stamps sensor data with AirSim's clock, so a sim running at half
+#         speed pushes cloud timestamps outside octomap's TF cache. Use this for
+#         swarm/*_viz.py and cooperative_mapping.launch.py.
 set -euo pipefail
 
 WORKDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # repo root (this script lives in scripts/)
 IMAGE="airsim_swarm:vk"   # base airsim_binary + libvulkan1 (see Dockerfile.vk)
-SETTINGS="$WORKDIR/settings.json"
+
+PROFILE="${PROFILE:-slam}"
+case "$PROFILE" in
+  slam)  SETTINGS="$WORKDIR/settings.json" ;;
+  swarm) SETTINGS="$WORKDIR/settings.swarm.json" ;;
+  *)     echo "ERROR: PROFILE must be 'slam' or 'swarm' (got '$PROFILE')." >&2; exit 1 ;;
+esac
+[[ -f "$SETTINGS" ]] || { echo "ERROR: $SETTINGS not found." >&2; exit 1; }
 
 # Pick the environment: first non-flag arg wins, else $ENV_NAME, else Africa.
 ENV_NAME="${ENV_NAME:-Africa}"
@@ -44,7 +69,7 @@ fi
 
 echo "Environment:            $ENV_NAME"
 echo "Env dir (host):         $ENV_DIR"
-echo "Settings (host):        $SETTINGS"
+echo "Settings (host):        $SETTINGS  [PROFILE=$PROFILE]"
 
 docker run --rm -it \
   --runtime=nvidia \

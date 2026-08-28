@@ -165,8 +165,15 @@ def probe_cameras(client: airsim.MultirotorClient, r: Results) -> None:
         want = rp.width * rp.height * 3
         ok = (rp.width == cfg.IMAGE_WIDTH and rp.height == cfg.IMAGE_HEIGHT
               and len(rp.image_data_uint8) == want and want > 0)
-        r.add(f"{name} delivers {cfg.IMAGE_WIDTH}x{cfg.IMAGE_HEIGHT}", ok,
-              f"got {rp.width}x{rp.height}, {len(rp.image_data_uint8)} bytes")
+        detail = f"got {rp.width}x{rp.height}, {len(rp.image_data_uint8)} bytes"
+        # Much the most likely cause of a mismatch is booting the wrong rig, and
+        # it is a quiet failure: cfg.FX is DERIVED from IMAGE_WIDTH (config.py:44),
+        # so a half-resolution sim yields depths that are wrong by 2x with no
+        # error anywhere. Name the fix rather than leaving it to be rediscovered.
+        if not ok and (rp.width, rp.height) != (0, 0):
+            detail += ("  -- sim booted the wrong rig? "
+                       "PROFILE=slam ./scripts/run_swarm.sh <Env>")
+        r.add(f"{name} delivers {cfg.IMAGE_WIDTH}x{cfg.IMAGE_HEIGHT}", ok, detail)
         if ok:
             frames[name] = np.frombuffer(rp.image_data_uint8, np.uint8).reshape(
                 rp.height, rp.width, 3)
