@@ -14,6 +14,22 @@ simulator in the way.
 Responses mimic AirSim's shapes (nested maps, w-first quaternions, a flat
 ``point_cloud`` float list, binary image payloads) but not its physics -- the
 drone hovers on a fixed circle so the numbers move.
+
+Two knobs exist purely so the mock can be made to *fail* like the real thing:
+
+``--clock-rate`` / ``--clock-skew``
+    Sensor payloads are stamped from a simulated clock that need not track wall
+    time. Real AirSim uses a SteppableClock for SimpleFlight multirotors and it
+    routinely runs at ~0.5x with four drones loaded. Defaulting this to 1.0 was
+    how the cooperative-mapping test came to pass against a bug that broke the
+    real demo completely: with the mock's "sim clock" identical to the wall clock,
+    a bridge that stamped sensors from one and TF from the other looked fine.
+    Run the mapping test at ``--clock-rate 0.5`` and it does not.
+
+``--points-per-sweep``
+    Real AirSim returns ~16k points per sweep at the configured 300k points/s.
+    The original 360 was three orders of magnitude off the load octomap_server
+    actually has to absorb.
 """
 from __future__ import annotations
 
@@ -24,6 +40,54 @@ import time
 import msgpackrpc
 
 T0 = time.time()
+
+# Simulated-clock parameters; overridden from argv in main(). Defaults reproduce
+# the old behaviour exactly (sim clock == wall clock).
+CLOCK_RATE = 1.0
+CLOCK_SKEW = 0.0
+
+
+def _sim_ns() -> int:
+    """The simulated clock, in nanoseconds -- what AirSim puts in ``time_stamp``.
+
+    Advances at CLOCK_RATE relative to wall time, from an initial offset of
+    CLOCK_SKEW seconds. At rate 1.0 / skew 0.0 this is just ``time.time()``.
+    """
+    return int((T0 + CLOCK_SKEW + (time.time() - T0) * CLOCK_RATE) * 1e9)
+
+
+# Points per LiDAR sweep; overridden from argv in main().
+POINTS_PER_SWEEP = 360
+_SWEEP_CACHE: list[float] | None = None
+
+
+def _sweep() -> list[float]:
+    """One sensor-frame sweep, flat [x,y,z,...], built once and cached.
+
+    16 channels over the rig's -45..+15 deg vertical FOV, azimuth filling the
+    rest, on a 20 m cylinder. The shape matters to
+    ``test_cooperative_mapping.py``: returns must stay well inside the 30 m radius
+    that test uses to associate voxels with the drone that saw them.
+    """
+    global _SWEEP_CACHE
+    if _SWEEP_CACHE is not None and len(_SWEEP_CACHE) == 3 * POINTS_PER_SWEEP:
+        return _SWEEP_CACHE
+
+    channels = 16
+    per_channel = max(1, POINTS_PER_SWEEP // channels)
+    pts: list[float] = []
+    # Indexed so the sweep is EXACTLY POINTS_PER_SWEEP points: a flag that
+    # silently rounds down is a flag that makes callers assert wrong numbers.
+    for n in range(POINTS_PER_SWEEP):
+        ch, i = n % channels, n // channels
+        # SensorLocalFrame is FRD, so +z is DOWN: the downward-biased FOV of an
+        # aerial rig gives mostly positive z here.
+        elev = math.radians(15.0 - 60.0 * ch / (channels - 1))
+        a = 2.0 * math.pi * (i % per_channel) / per_channel
+        r = 20.0 * math.cos(elev)
+        pts.extend([r * math.cos(a), r * math.sin(a), -20.0 * math.sin(elev)])
+    _SWEEP_CACHE = pts
+    return pts
 
 
 def _vec(x=0.0, y=0.0, z=0.0):
@@ -106,7 +170,7 @@ class MockAirSim:
         return {
             "collision": {"has_collided": False},
             "kinematics_estimated": self.simGetGroundTruthKinematics(vehicle_name),
-            "timestamp": int(time.time() * 1e9),
+            "timestamp": _sim_ns(),
             "landed_state": 1,
             "rc_data": {"timestamp": 0},
             "ready": True,
@@ -119,7 +183,7 @@ class MockAirSim:
     def getImuData(self, imu_name, vehicle_name):
         (x, y, z), yaw = self._pose(vehicle_name)
         return {
-            "time_stamp": int(time.time() * 1e9),
+            "time_stamp": _sim_ns(),
             "orientation": _quat(z=math.sin(yaw / 2), w=math.cos(yaw / 2)),
             "angular_velocity": _vec(0.0, 0.0, 0.2),
             "linear_acceleration": _vec(0.0, 0.2, 9.80665),
@@ -127,7 +191,7 @@ class MockAirSim:
 
     def getGpsData(self, gps_name, vehicle_name):
         return {
-            "time_stamp": int(time.time() * 1e9),
+            "time_stamp": _sim_ns(),
             "gnss": {
                 "time_utc": int(time.time()),
                 "geo_point": {"latitude": 47.641468, "longitude": -122.140165,
@@ -143,15 +207,15 @@ class MockAirSim:
 
         Flat-and-float is how AirSim ships point clouds, and it is the one field
         the client must NOT walk element-by-element when wrapping responses.
+
+        The sweep is built once and reused: it is static in the sensor frame, and
+        at POINTS_PER_SWEEP=16k regenerating it per call would make the *mock* the
+        bottleneck rather than whatever is under test.
         """
-        pts = []
-        for i in range(360):
-            a = math.radians(i)
-            pts.extend([20.0 * math.cos(a), 20.0 * math.sin(a), -2.0])
         (x, y, z), yaw = self._pose(vehicle_name)
         return {
-            "time_stamp": int(time.time() * 1e9),
-            "point_cloud": pts,
+            "time_stamp": _sim_ns(),
+            "point_cloud": _sweep(),
             "pose": {"position": _vec(x, y, z - 0.1),
                      "orientation": _quat(z=math.sin(yaw / 2), w=math.cos(yaw / 2))},
             "segmentation": [],
@@ -173,7 +237,7 @@ class MockAirSim:
                 "image_data_float": [],
                 "camera_position": _vec(0.3, -0.125, 0.3),
                 "camera_orientation": _quat(),
-                "time_stamp": int(time.time() * 1e9),
+                "time_stamp": _sim_ns(),
                 "message": "",
                 "pixels_as_float": False,
                 "compress": False,
@@ -221,12 +285,27 @@ def main() -> None:
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=41999,
                     help="deliberately NOT 41451, so a real sim can run alongside")
+    ap.add_argument("--clock-rate", type=float, default=1.0,
+                    help="sim clock speed relative to wall time. Real AirSim runs "
+                         "well under 1.0 with four drones loaded; 1.0 (the default) "
+                         "hides every clock-consistency bug in the bridge.")
+    ap.add_argument("--clock-skew", type=float, default=0.0,
+                    help="seconds to offset the sim clock from wall time at startup")
+    ap.add_argument("--points-per-sweep", type=int, default=360,
+                    help="LiDAR returns per sweep. Real AirSim gives ~16000.")
     args = ap.parse_args()
+
+    global CLOCK_RATE, CLOCK_SKEW, POINTS_PER_SWEEP
+    CLOCK_RATE = args.clock_rate
+    CLOCK_SKEW = args.clock_skew
+    POINTS_PER_SWEEP = args.points_per_sweep
 
     server = msgpackrpc.Server(MockAirSim(), pack_encoding="utf-8",
                                unpack_encoding="utf-8")
     server.listen(msgpackrpc.Address(args.host, args.port))
-    print(f"mock AirSim RPC on {args.host}:{args.port} -- ctrl-c to stop", flush=True)
+    print(f"mock AirSim RPC on {args.host}:{args.port} -- ctrl-c to stop\n"
+          f"  clock: rate {CLOCK_RATE}x, skew {CLOCK_SKEW:+g}s | "
+          f"lidar: {len(_sweep()) // 3} points/sweep", flush=True)
     server.start()
 
 
