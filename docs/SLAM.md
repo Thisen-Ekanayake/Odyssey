@@ -31,6 +31,15 @@ Consequently:
 Every result is reported on both a `raw` and a `degraded` axis, so the simulator's limitation is part
 of the finding rather than hidden inside it.
 
+A second, sharper version of the same trap turned up when the full five-condition grid was finally
+run on the real recordings, and it is worth stating here rather than burying it: AirSim's LiDAR is
+not merely weather-proof, it is **noiseless**. Every front-end constant in this pipeline was
+therefore tuned against a sensor that cannot exist, and it turns out to tolerate essentially no
+range noise at all — 1.5 cm is enough to break it, well under a real unit's 2–3 cm floor. That
+makes the `raw` arm the trustworthy half and the `degraded` arm a confound rather than a weather
+ranking. Full evidence under "Weather" and "Known limitations #2"; read those before quoting any
+degraded number.
+
 ---
 
 ## Pipeline
@@ -69,10 +78,11 @@ sparse triangulated stereo point set — so stereo verifies its own closures and
 ### 0. Configure and probe (once)
 
 `settings.json` was rewritten for this study and **AirSim only reads it at startup**, so restart the
-sim first:
+sim first. `PROFILE` defaults to `slam`, which is the rig this study needs — pass it explicitly if
+you have been running the four-drone demos, which use `PROFILE=swarm`:
 
 ```bash
-./scripts/run_swarm.sh AirSimNH
+PROFILE=slam ./scripts/run_swarm.sh AirSimNH
 ./airsim_venv/bin/python tools/probe_setup.py
 ```
 
@@ -99,11 +109,22 @@ probe reported that lockstep stepping misbehaves.
 ### 2. Benchmark (offline, no simulator)
 
 ```bash
-./airsim_venv/bin/python tools/run_benchmark.py
+./airsim_venv/bin/python tools/run_benchmark.py --no-loop-closure     # the trustworthy arm
+./airsim_venv/bin/python tools/run_benchmark.py --repeats 3 --out results/loop_closure
 ```
 
-Writes `results/metrics.csv`, `metrics.json`, and three figures: `degradation_curves.png`,
-`robustness.png`, `trajectories.png`.
+15 cells (5 conditions × {lidar, stereo} × {raw, degraded}, minus the pointless stereo+degraded).
+Roughly an hour per pass on a 32-core box.
+
+Writes `results/metrics.csv`, `metrics.json`, three figures (`degradation_curves.png`,
+`robustness.png`, `trajectories.png`), and `run_manifest.json` — which records **which conditions
+actually ran**. That last one exists because it did not: `results/` sat for weeks holding a
+2-condition, 60-frame synthetic smoke run while looking exactly like the finished 5-condition
+study, and the tool silently dropped missing conditions rather than complaining. It now refuses
+unless you pass `--allow-missing`.
+
+Use `--repeats` for anything with loop closure on. See "Known limitations" — a single draw is not
+a result there.
 
 ### 3. Live demo
 
@@ -132,24 +153,68 @@ GPU, or an hour of flying:
 ./airsim_venv/bin/python tools/run_benchmark.py --datasets datasets_synth
 ```
 
+`synthetic_dataset.py` defaults to all five conditions, so a fixture generated as above is a
+complete grid. If yours is not — the one on disk was generated `--no-stereo` and with only two
+conditions — `run_benchmark.py` will now **refuse to run** rather than quietly produce a
+2-condition `metrics.csv` that looks like the study. Regenerate it, or pass `--allow-missing`
+to accept a partial grid deliberately; either way `results/run_manifest.json` records which
+conditions actually ran.
+
 It is a **test fixture**. Numbers from it say the pipeline works; they say nothing about AirSimNH.
 
 ---
 
 ## Sensor configuration
 
-`settings.json` and `slam/config.py` must stay in sync; the probe cross-checks them.
+`settings.json` and `slam/config.py` must stay in sync; the probe cross-checks them against the
+**live sim**, so run it after starting the sim, not before.
+
+There are now two rigs. `settings.json` is this one — the SLAM rig, and the default.
+`settings.swarm.json` (`PROFILE=swarm ./scripts/run_swarm.sh`) is a cut-down 640×360 / 100 k
+version for the four-drone demos, which need the sim to keep up more than they need resolution.
+**Never record a dataset on the swarm profile**: `cfg.FX` is *derived* from `IMAGE_WIDTH`, so
+half the resolution silently halves the true focal length and every stereo depth comes out 2×
+wrong, with nothing raising an error. `probe_setup.py` catches it in one line and now names the
+profile to switch to.
 
 | | value | why |
 |---|---|---|
 | LiDAR | 16 ch, 100 m, 300 k pts/s, 10 Hz, VFOV +15°/−45° | The default `Range` is **10 m** — useless for mapping. VFOV is biased downward because at 25 m AGL a symmetric ±15° rig only returns ground in a ring ~45 m out. |
 | `DataFrame` | `SensorLocalFrame` | Non-negotiable. The estimator must apply its *own* pose, never the simulator's. |
-| Stereo | 2 × 1280×720, 90° FOV, 0.25 m baseline | `fx = 640`, so `fx·B = 160`. Depth error `Z²·δd/(fx·B)` ≈ 0.3 m at 10 m, 1.3 m at 20 m. |
+| Stereo | 2 × 1280×720, 90° FOV, 0.25 m baseline | `fx = 640`, so `fx·B = 160`. Depth error `Z²·δd/(fx·B)` ≈ 0.3 m at 10 m, 1.3 m at 20 m. This baseline is the stereo arm's binding constraint at 25 m AGL — see "Stereo depth horizon" below. |
 | IMU | explicit block with stated noise params | So the noise model is reproducible rather than an undocumented default. |
 | Route | 120×80 m rectangle, 25 m AGL, **2 laps**, 4 m/s | ~800 m. The second lap is what gives loop closure something to close. The altitude must clear everything in the environment — the circuit is a fixed script with no obstacle avoidance, and the recorder aborts if the drone wedges into geometry. |
 
 Weather does not affect AirSim physics, so the same waypoints produce near-identical trajectories in
 all five conditions — the sensor stream is the only variable.
+
+### Stereo depth horizon — the rig's binding constraint, and a bug it caused
+
+The route flies at 25 m AGL with a **forward**-facing camera, so the scene it looks at sits at
+about **71 m** median depth. A 0.25 m baseline at that range gives roughly **1.1 px** of disparity
+in the half-resolution SGBM image (`fx·s·B/Z = 320·0.25/71`). That is the honest physical limit of
+this rig, and no amount of tuning removes it.
+
+`STEREO_MAX_DEPTH` was originally set to **25 m** from the depth-resolution argument in the table
+above. The argument is correct; the value was badly wrong for this route, because it threw away
+almost everything the camera could see. The cost was not subtle — measured over the full 798 m
+circuit on `datasets/clear`, odometry only, seed 42:
+
+| `STEREO_MAX_DEPTH` | tracking failures | ATE RMSE | drift | RPE %/10 m |
+|---|---|---|---|---|
+| 25 m (was) | 1217 / 2315 (52.6 %) | 193.18 m | 39.96 % | 196.65 |
+| **60 m (now)** | **120 / 2315 (5.2 %)** | **44.95 m** | **14.04 %** | **29.56** |
+
+60 m is a genuine optimum, not "more is better". Over the first 274 m a 120 m cap yields *more*
+usable points per frame (740 vs 200 median) and tracks *worse* (ATE 21.2 m vs 15.0 m) — beyond
+~60 m the extra points are noise wearing a depth. A 2 px-disparity floor would have argued for
+40 m; that measured worse too (29.5 m over the same 274 m). The measurement decided it.
+
+Two things worth taking from this. First, 14 % drift over 800 m is still a poor result — the
+stereo arm is not competitive here, and the reason is the rig, not the algorithm. Second, this is
+much the largest single lever found in the stereo pipeline, and it was a **constant chosen from a
+sound argument that was never measured against the actual flight**. Windowed BA, by contrast, was
+measured and earned nothing.
 
 ---
 
@@ -191,15 +256,25 @@ assumption and it is kept in one auditable place on purpose.
 
 ## Verified behaviour
 
-All numbers below are from synthetic fixtures on the full 800 m two-lap route. **They validate the
-pipeline, not AirSimNH.**
+Two sources of numbers appear below and they are **not interchangeable**. Check which one you are
+reading before quoting anything.
 
-Two fixtures are used and their numbers are **not interchangeable**:
+- **"Weather" (further down) is the real thing** — all five AirSimNH recordings, ~800 m each,
+  through `run_benchmark.py`. That section carries the study's actual answers.
+- **Everything between here and there is from synthetic fixtures.** They validate the pipeline, not
+  AirSimNH, and they predate the real grid.
+
+Two fixtures are used:
 
 - **fixture A** — clean IMU (no added noise). Used for the LiDAR-vs-stereo comparison, so both
   methods see the same conditions.
 - **fixture B** — `tools/synthetic_dataset.py`, which adds IMU noise (σ 2e-4 rad/s gyro,
-  2e-3 m/s² accel). Harder, and the one the on-disk benchmark actually runs on.
+  2e-3 m/s² accel). Harder.
+
+Where the two disagree, the real recordings win. The most important disagreement: fixture A put
+LiDAR ~3× ahead of stereo, and the real data puts it **~100×** ahead (0.43 m vs 44.9 m). The fixture
+was too kind to stereo because its procedural texture gives ORB clean corners at any range, which
+sidesteps the baseline limit that dominates on the real recordings.
 
 ### Odometry (loop closure disabled) — stable and reproducible
 
@@ -209,17 +284,25 @@ Two fixtures are used and their numbers are **not interchangeable**:
 | A | Stereo-inertial (VO only) | 16.18 m | 2.70 % | 7.4 %/10 m | 38 / 2000 |
 | B | LiDAR-inertial | 23.53 m | 2.9 % | 8.5 %/10 m | 7 / 2000 |
 
-**On the matched fixture, LiDAR odometry drifts ~3× less than stereo** (0.87 % vs 2.70 %) — the
-headline answer to "how much do you lose dropping the LiDAR". The fixture-B row shows how sharply
-LiDAR odometry degrades once the IMU prior is noisy, which is worth knowing before trusting the
-real recording.
+On the matched fixture LiDAR odometry drifts ~3× less than stereo (0.87 % vs 2.70 %). **Treat that
+ratio as a fixture artifact, not the answer** — on the real recordings the gap is ~100×, for the
+reason given above. The fixture-B row shows how sharply LiDAR odometry degrades once the IMU prior
+is noisy.
 
 Odometry is **exactly reproducible**: seeds 42 and 43 produced byte-identical metrics
-(23.531 m both). All nondeterminism in this system lives in loop-closure RANSAC.
+(23.531 m both).
 
-Windowed BA was measured and **turned off by default**: 16.175 m → 16.201 m (no improvement) for
-+55 % runtime (520 s → 806 s), with 45 of 399 solves discarded as diverged. Re-enable with
-`--stereo-ba`.
+That was once stated as "all nondeterminism in this system lives in loop-closure RANSAC", and
+running the real grid twice falsified it. With loop closure **off** and the same seed, 14 of the 15
+cells reproduced bit-for-bit across two runs — and `fog_light`+degraded did not (2410.1 m vs
+2117.5 m, with a different failure count too). The distinguishing feature is that it is one of the
+diverged cells: converged runs are reproducible, and a run that has already lost tracking is not.
+The likely mechanism is non-associative floating-point reduction in Open3D's multi-threaded GICP,
+where differences far below display precision get amplified once the trajectory is chaotic.
+
+Practical consequence: **a diverged ATE is not a measurement.** Its magnitude carries no
+information, it does not reproduce, and it should not be compared against another diverged ATE.
+`TrajectoryMetrics.diverged` exists to mark exactly these rows.
 
 Windowed BA was measured and **turned off by default**: 16.175 m → 16.201 m (no improvement) for
 +55 % runtime (520 s → 806 s), with 45 of 399 solves discarded as diverged. Re-enable with
@@ -248,30 +331,126 @@ absorbs it, as ATE should); iid noise of σ=0.5 m/axis recovers 0.853 m against 
 10 % scale error recovers `scale_estimate = 0.9091`; map completeness on a half-removed sparse cloud
 recovers exactly 0.500.
 
-### Weather — the asymmetry, demonstrated end to end
+### Weather — the asymmetry, on the real recordings
 
-Full `run_benchmark.py` output on fixture B, odometry only (`--no-loop-closure --repeats 2`):
+This is the study's central claim, and it is now measured on all five AirSimNH recordings rather
+than on a fixture. `run_benchmark.py --no-loop-closure`, full 798 m circuit, seed 42, simulator
+output exactly as recorded:
 
-| condition | LiDAR degraded? | ATE RMSE | RPE %/10 m | keyframes |
+| condition | LiDAR-inertial ATE | drift | stereo-inertial ATE | drift | stereo tracking failures |
+|---|---|---|---|---|---|
+| clear | **0.430 m** | 0.07 % | 44.9 m | 14.0 % | 5.2 % |
+| rain_light | **0.430 m** | 0.08 % | 28.1 m | 9.8 % | 4.7 % |
+| rain_heavy | **0.505 m** | 0.11 % | 35.8 m | 7.2 % | 6.2 % |
+| fog_light | **0.476 m** | 0.07 % | **663.0 m** | 125.5 % | 58.7 % |
+| fog_heavy | **0.456 m** | 0.09 % | **16 409.8 m** | 3549 % | 94.4 % |
+
+Two things fall out of it.
+
+**The LiDAR does not care about the weather — because the simulator's LiDAR cannot.** The five
+LiDAR numbers span 0.43–0.51 m, and that spread is trajectory variation between five separate
+flights, not weather. This is the trap the whole study is built around, now demonstrated instead of
+asserted: rain and fog are rendering effects, the LiDAR is a raycast against collision geometry, and
+particles have no collision. A study that stopped here would conclude "LiDAR is weather-proof",
+which is a fact about AirSim and not about LiDAR.
+
+**The cameras do care, and the collapse is dramatic.** Stereo degrades from 44.9 m in clear to
+663 m in light fog and 16.4 km in dense fog, with tracking failures rising 5 % → 59 % → 94 %. That
+half of the comparison is genuinely simulated, and it is the half where AirSim earns its keep.
+
+Rain is mildly *better* than clear for stereo (28.1 m and 35.8 m vs 44.9 m). Wet-road specular
+highlights plausibly add ORB features, but with a marginal estimator at 5–6 % failure either way,
+this is not a large enough gap to claim as a finding.
+
+Note the LiDAR arm is ~100× more accurate than the stereo arm here (0.43 m vs 44.9 m in clear).
+That is a far wider gap than the ~3× the synthetic fixture suggested, and the reason is the rig
+rather than the algorithm — see "Stereo depth horizon" above.
+
+#### The modelled-LiDAR arm does not currently rank weather — and here is why
+
+`run_benchmark.py` also runs a `degraded` arm that applies `slam/degradation.py` to the LiDAR.
+Those numbers are **not** a weather ranking and must not be read as one:
+
+| condition | α (1/m) | points kept | degraded ATE |
+|---|---|---|---|
+| rain_light | 0.0025 | 82 % | 2130.9 m *(diverged)* |
+| rain_heavy | 0.0047 | 75 % | 1142.7 m *(diverged)* |
+| fog_light | 0.0077 | 78 % | 2117.5 m *(diverged)* |
+| fog_heavy | 0.0652 | 11 % | 56.7 m |
+
+The mildest condition diverges and the harshest survives. The degradation model itself is monotone
+— measured on real scans it removes 18 % of points at `rain_light` and 89 % at `fog_heavy` — so the
+inversion comes from the pipeline, not the model. Ablating the model's four effects one at a time
+on `rain_light` (400 frames) isolates it to one:
+
+| variant | GICP failures | mean fitness | ATE |
+|---|---|---|---|
+| all four effects | 14 | 0.707 | 143.4 m |
+| no clutter | 16 | 0.701 | 37.1 m |
+| no speckle | 18 | 0.747 | 39.0 m |
+| no attenuation dropout | 16 | 0.721 | 145.7 m |
+| **no range noise** | **0** | **0.956** | **0.247 m** |
+| clutter only (no noise) | 0 | 0.958 | 0.266 m |
+
+Range noise alone accounts for the whole effect. Removing it restores ATE from 143 m to 0.25 m and
+GICP fitness from 0.71 to 0.96; removing any of the other three changes little.
+
+Sweeping the noise magnitude on its own — every other effect disabled — shows it is not a
+sensitivity but a **cliff**:
+
+| σ multiplier | σ at 48 m | GICP failures | fitness | ATE |
 |---|---|---|---|---|
-| clear | no | 23.531 m | 8.50 | 388 |
-| clear | yes | 23.531 m | 8.50 | 388 |
-| fog_heavy | no | 23.531 m | 8.50 | 388 |
-| fog_heavy | **yes** | **115.427 m** | **302.43** | 162 |
+| 0 | 0 | 0 | 0.960 | **0.244 m** |
+| 0.25 | **1.5 cm** | 23 | 0.691 | 68.2 m |
+| 0.5 | 3.1 cm | 96 | 0.648 | 558.3 m |
+| 1.0 | 6.1 cm | 24 | 0.677 | 39.7 m |
+| 2.0 | 12.2 cm | 28 | 0.739 | 39.2 m |
 
-Read the first three rows carefully — they are **identical to the digit**, including the map point
-count (394 921). That is the whole argument in one table:
+**1.5 cm of radial noise is enough to break it, and more noise is not meaningfully worse.** Past the
+cliff the ATE is chaotic rather than graded — once tracking breaks, where it ends up is arbitrary,
+which is also why the five degraded conditions rank the way they do.
 
-- `clear` raw vs `clear` degraded are identical because the model correctly no-ops at α = 0.
-- `clear` raw vs `fog_heavy` raw are identical because **the simulator's LiDAR stream is literally
-  unchanged by fog**. Had the study stopped at "run SLAM under AirSim weather", its conclusion would
-  have been "LiDAR is perfectly weather-proof" — an artifact of the simulator, not a fact about
-  LiDAR.
-- Only the modelled row moves, and it moves catastrophically: dense fog cuts the effective range to
-  26 m and fills the near field with backscatter clutter, so scan matching collapses (keyframes drop
-  from 388 to 162 because the estimator stops believing it is moving).
+The number that matters is the threshold. A real Velodyne or Ouster has a 2–3 cm range-noise floor,
+so **as tuned, this pipeline would not work on data from real hardware at all** — it is calibrated
+to a noiseless raycast. That is a more useful thing to know about it than any of the weather
+numbers, and nothing in a simulator-only study would ever have surfaced it: AirSim's LiDAR is
+perfect, so the entire tuning was done against a sensor that does not exist.
 
-Both repeats of every cell agreed exactly, confirming per-cell seeding works.
+`NORMAL_RADIUS` is implicated but is **not** a fix. GICP is plane-to-plane, so it needs a local
+neighbourhood with two real dimensions; at the 48 m median range a 16-channel rig over 60° puts
+rings **3.35 m** apart, so the default 1.0 m radius sees a single ring — a 1-D arc, whose only
+second dimension is the range noise itself. Widening it does help, but not consistently:
+
+| `NORMAL_RADIUS` | rain_light | fog_light | fog_heavy |
+|---|---|---|---|
+| 1.0 m (default) | 143.4 m | 179.7 m | 38.4 m |
+| 2.0 m | 172.0 m | 175.7 m | 39.9 m |
+| 3.5 m | 268.4 m | 236.4 m | 40.1 m |
+| 5.0 m | **0.32 m** | 248.6 m | 33.8 m |
+
+5.0 m fully recovers `rain_light` (143 m → 0.32 m, 0 failures, fitness 0.96) and does nothing for
+`fog_light`; 3.5 m is *worse* than the default. **These are single-seed draws inside a regime that
+the magnitude sweep already showed to be chaotic, so this table locates the mechanism and does not
+license a retune.** Changing the constant on this evidence would be the same mistake as reporting a
+single loop-closure draw. It needs a multi-seed study — see "Known limitations".
+
+The confound this exposes is in the **experiment design**, not the weather model. AirSim's LiDAR is
+a raycast and therefore **perfectly noiseless** — the `raw` arm is not "clear weather", it is a
+physically impossible sensor. The degradation model adds a baseline sensor noise term
+(`SIGMA_BASE = 0.02 m`, a realistic 1σ for a real unit) on top of the weather term, so
+`degraded − raw` measures *weather plus the arrival of any range noise at all*. The front end turns
+out to be far more sensitive to the second than to the first, and the ordering that results is a
+noise-robustness artifact.
+
+This matters retroactively: the earlier fixture result in this document — "only the modelled row
+moves, and it moves catastrophically" — was measuring the same thing, because
+`tools/synthetic_dataset.py`'s LiDAR is a raycast too. The catastrophic fog row was never purely a
+fog result.
+
+The full 5-condition grid is what surfaced this. The fixture had only ever been run at severity 0
+and severity 0.8 — the two points where the effect is invisible, because at α = 0 the model no-ops
+entirely and at α = 0.065 the surviving cloud is so thin that the noise term is no longer what
+dominates.
 
 ---
 
@@ -295,6 +474,31 @@ Two bugs were also found and fixed inside this work, both worth knowing about:
 4. **Frame-to-keyframe anchoring must be captured before optimisation runs**, or the frame is
    expressed relative to a corrected pose using an uncorrected estimate — exactly cancelling the
    loop closure back out.
+
+Running the full five-condition grid on the real recordings for the first time turned up four more,
+every one of which had been silently producing numbers that looked fine:
+
+5. **`map_rmse` was measuring the start-pose offset, not the map.** `evaluate_map` did a
+   nearest-neighbour query between the estimated map and the ground-truth reference **with no
+   alignment**, while ATE has always been Umeyama-aligned. A run with 0.221 m ATE scored a 24.917 m
+   map RMSE. `TrajectoryMetrics` now carries the alignment it computed and `run_benchmark` applies
+   it before scoring; the same run now scores **0.540 m**, and the real grid lands at 0.75–0.80 m
+   across all five conditions.
+6. **`tracking_failure_rate` could exceed 100 %.** `n_frames` was incremented only on the success
+   path while `n_failures` was incremented on early returns, so the two had different denominators.
+   A real stereo run reported **154 %**. Both front ends now count `n_frames` as "frames on which
+   tracking was attempted", at the point where that becomes true.
+7. **`STEREO_MAX_DEPTH` was 25 m against a scene at ~71 m** — see "Stereo depth horizon". 4.3× ATE.
+8. **`run_benchmark.py` silently dropped conditions with no dataset directory.** A 5-condition
+   invocation over a 2-condition tree produced a `metrics.csv` indistinguishable from the finished
+   study, which is exactly what `results/` contained for three weeks. It now refuses unless
+   `--allow-missing` is passed, and writes `run_manifest.json` recording what actually ran.
+
+`settings.json` had also drifted from `slam/config.py` (640×360 / 100k vs the declared 1280×720 /
+300k) after a performance tweak for the swarm demos. The offline benchmark was unaffected — the
+recordings predate the drift — but any *new* recording would have had `fx` wrong by 2×, silently,
+because `cfg.FX` is derived from `IMAGE_WIDTH`. The two rigs are now separate files and
+`run_swarm.sh` selects between them with `PROFILE`.
 
 ---
 
@@ -338,7 +542,34 @@ Mitigations in place, and what to do next:
 **Until this is resolved, the trustworthy comparison is the odometry one** (loop closure disabled,
 `--no-loop-closure`), which is stable and reproducible.
 
-### 2. Other limitations
+### 2. The LiDAR front end has essentially no range-noise tolerance
+
+Established above under "Weather": **1.5 cm of radial range noise takes LiDAR odometry from 0.24 m
+ATE to 68 m**, and more noise is not meaningfully worse. AirSim's LiDAR is a noiseless raycast, so
+the whole front end — `VOXEL_SIZE`, `NORMAL_RADIUS`, `GICP_MIN_FITNESS`, `GICP_MAX_RMSE` — was
+tuned against a sensor that cannot exist. A real Velodyne or Ouster sits at 2–3 cm.
+
+Two consequences, and they are different in kind:
+
+- **For the study.** The `degraded` arm is not a weather ranking. Its ordering is dominated by the
+  arrival of `SIGMA_BASE` (a baseline sensor-noise term the `raw` arm does not have) rather than by
+  extinction, which is why the mildest condition diverges and the harshest does not. Report the
+  `raw` arm; treat the `degraded` arm as a demonstration that the modelled-LiDAR axis exists, not
+  as a measurement along it. Fixing the confound properly means either applying `SIGMA_BASE` to
+  both arms — so the only difference is the weather — or reporting the degraded arm only against a
+  noise-matched baseline.
+- **For the pipeline.** This is the single biggest obstacle to this code ever touching real
+  hardware, and it is invisible from inside a simulator. `NORMAL_RADIUS` is the identified lever
+  (5.0 m recovers `rain_light` completely) but is not a general fix and behaves non-monotonically;
+  the honest next step is a multi-seed sweep over `NORMAL_RADIUS × VOXEL_SIZE × GICP_MIN_FITNESS`
+  against injected noise at a realistic 2–3 cm, scored on several seeds — not a constant changed on
+  one draw.
+
+Neither is a small job, and neither was visible until the full five-condition grid ran: the
+synthetic fixture had only ever been exercised at severity 0 and 0.8, the two points where the
+effect happens not to show.
+
+### 3. Other limitations
 
 - **Windowed BA earns nothing measurable** (16.175 → 16.201 m) for +55 % runtime, so it is off by
   default. Diverged solves are detected and discarded (`BA_MAX_CORRECTION`). A useful implementation
