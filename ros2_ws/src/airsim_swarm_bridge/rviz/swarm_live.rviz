@@ -46,18 +46,80 @@ Visualization Manager:
     Tree: {}
     Frames:
       All Enabled: true
-  - Class: octomap_rviz_plugins/OccupancyGrid
-    Name: cooperative map (octomap)
+  # The shared cooperative map, drawn from octomap_server's occupied-voxel centres
+  # rather than through octomap_rviz_plugins/OccupancyGrid.
+  #
+  # That plugin is unusable on this machine: ros-jazzy-octomap-rviz-plugins ships a
+  # liboctomap_rviz_plugins.so that does not link liboctomap, so RViz fails to
+  # dlopen it -- 'undefined symbol: _ZTIN7octomap13OcTreeStampedE' (typeinfo for
+  # octomap::OcTreeStamped) -- and the ONLY display of the map silently never
+  # appears. Boxes sized to the octomap resolution off /octomap_point_cloud_centers
+  # look the same, cost one less package on the critical path, and show exactly the
+  # topic test_cooperative_mapping.py asserts on, so test and demo agree.
+  # (If you want the real plugin: LD_PRELOAD the system liboctomap.so into rviz2.)
+  - Class: rviz_default_plugins/PointCloud2
+    Name: cooperative map (octomap voxels)
     Enabled: true
-    Octomap Topic: /octomap_binary
-    Queue Size: 5
-    Max. Height Display: 1000
-    Min. Height Display: -1000
-    Max. Octree Depth: 16
-    Alpha: 0.8
-    Voxel Coloring: Z-Axis
-    Voxel Alpha: 1
+    Topic:
+      Value: /octomap_point_cloud_centers
+      Depth: 5
+      Durability Policy: Volatile
+      Reliability Policy: Reliable
+      History Policy: Keep Last
+      Filter size: 10
     Style: Boxes
+    Size (m): 0.5
+    Alpha: 0.9
+    Decay Time: 0
+    Position Transformer: XYZ
+    Color Transformer: AxisColor
+    Color: 200; 200; 200
+    Queue Size: 10
+    Selectable: true
+    Use Fixed Frame: true
+    Use rainbow: true
+    Invert Rainbow: false
+    Autocompute Intensity Bounds: true
+    Min Color: 0; 0; 0
+    Max Color: 255; 255; 255
+    Axis: Z
+    # Fixed bounds, not autocompute: the map grows throughout the flight, and
+    # autocompute re-normalises the palette on every update -- the whole map
+    # visibly changes colour as new voxels arrive, which is distracting in a
+    # recording and makes height impossible to read across frames. The range
+    # covers ground to a little above swarm_edge_to_center's 50 m cruise.
+    Autocompute Value Bounds:
+      Max Value: 60
+      Min Value: -5
+      Value: false
+  # Diagnostic: what cloud_merger_node is relaying, before octomap consumes it.
+  # Off by default -- if the map above is empty but this is not, the problem is
+  # octomap_server (TF/clock), not the bridges.
+  - Class: rviz_default_plugins/PointCloud2
+    Name: merged points (diagnostic)
+    Enabled: false
+    Topic:
+      Value: /swarm/merged_points
+      Depth: 5
+      Durability Policy: Volatile
+      Reliability Policy: Best Effort
+      History Policy: Keep Last
+      Filter size: 10
+    Style: Points
+    Size (Pixels): 2
+    Alpha: 1
+    Decay Time: 0
+    Position Transformer: XYZ
+    Color Transformer: FlatColor
+    Color: 255; 255; 255
+    Queue Size: 10
+    Selectable: false
+    Use Fixed Frame: true
+    Use rainbow: true
+    Invert Rainbow: false
+    Autocompute Intensity Bounds: true
+    Min Color: 0; 0; 0
+    Max Color: 255; 255; 255
   - Class: rviz_default_plugins/PointCloud2
     Name: drone1 lidar
     Enabled: true
@@ -269,9 +331,14 @@ Visualization Manager:
       History Policy: Keep Last
       Filter size: 10
     Namespaces: {}
+  # All four camera panels default off. cooperative_mapping.launch.py runs with
+  # stereo disabled (a mapping demo wants LiDAR, not the expensive image RPC), and
+  # an enabled panel with no publisher is just a black rectangle in the recording.
+  # Tick the ones you want on -- with bridge.launch.py's default stereo:=true they
+  # populate immediately.
   - Class: rviz_default_plugins/Image
     Name: drone1 left cam
-    Enabled: true
+    Enabled: false
     Topic:
       Value: /drone1/stereo/left/image_raw
       Depth: 2

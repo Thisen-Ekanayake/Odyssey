@@ -49,6 +49,12 @@ class ManeuverNode(Node):
         self.declare_parameter("host", "127.0.0.1")
         self.declare_parameter("port", 41451)
         self.declare_parameter("drones", [""])
+        # Refuse manoeuvres until every drone's bridge is publishing -- see
+        # _bridges_ready. Set False when running this node without bridges: the
+        # manoeuvres themselves do their own calibration through
+        # swarm_comms.SwarmPositions and do not need one, it is the shared MAP
+        # that does.
+        self.declare_parameter("require_bridges", True)
 
         g = lambda n: self.get_parameter(n).value            # noqa: E731
 
@@ -60,6 +66,7 @@ class ManeuverNode(Node):
 
         drones = [d for d in (g("drones") or []) if d]
         self.drones: list[str] = drones or list(self._comms.DRONES)
+        self.require_bridges: bool = g("require_bridges")
 
         self.client = MultirotorClient(g("host"), int(g("port")))
         self.client.confirmConnection(120.0)
@@ -79,6 +86,43 @@ class ManeuverNode(Node):
             for name in ("takeoff", "land", "hover", "edge_to_center", "converge")
         }
 
+    # -- readiness ---------------------------------------------------------
+
+    def _bridges_ready(self) -> tuple[bool, str]:
+        """Refuse to move anything until every drone's bridge has come up.
+
+        ``AirSimBridge._calibrate_offset`` snapshots each vehicle's raw local
+        position at startup and treats it as that run's zero -- which is only
+        correct if the drone has not moved yet. A manoeuvre that starts while one
+        bridge is still inside ``confirmConnection`` therefore gives that drone a
+        world offset measured from a position it has already left, and every cloud
+        it contributes lands in the wrong place on the shared map. Nothing errors;
+        the map is just quietly wrong for one of four drones.
+
+        The race is real but narrow, which is what makes it worth a guard rather
+        than a longer delay: ``cooperative_mapping.launch.py`` fires its
+        ``auto_maneuver`` on a fixed 8 s timer while a cold UE4 start can leave a
+        bridge connecting for far longer.
+
+        A bridge publishing ``odom_gt`` has necessarily finished calibrating --
+        the offset is computed in ``__init__``, before any publisher exists.
+
+        Only the shared map needs this. The manoeuvres themselves calibrate via
+        ``swarm_comms.SwarmPositions`` and are correct without any bridge running,
+        so ``require_bridges:=false`` restores the standalone behaviour.
+        """
+        if not self.require_bridges:
+            return True, ""
+        missing = [d for d in self.drones
+                   if self.count_publishers(f"/{d.lower()}/odom_gt") == 0]
+        if not missing:
+            return True, ""
+        return False, (
+            f"bridges not ready for {', '.join(missing)} (no odom_gt publisher). "
+            f"They calibrate their world offset from a stationary pose at startup, "
+            f"so moving now would misplace them on the shared map. Retry once "
+            f"bridge.launch.py reports all drones connected.")
+
     # -- dispatch ----------------------------------------------------------
 
     def _handle(self, name: str, req: Maneuver.Request, resp: Maneuver.Response):
@@ -93,6 +137,13 @@ class ManeuverNode(Node):
         if not self._busy.acquire(blocking=False):
             resp.success = False
             resp.message = f"busy running {self._current!r}"
+            return resp
+
+        ready, why = self._bridges_ready()
+        if not ready:
+            self._busy.release()
+            resp.success = False
+            resp.message = why
             return resp
 
         background = req.background or what in LONG_RUNNING

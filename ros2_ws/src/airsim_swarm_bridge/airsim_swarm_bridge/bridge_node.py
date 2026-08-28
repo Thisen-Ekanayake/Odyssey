@@ -83,6 +83,13 @@ class AirSimBridge(Node):
         # it stays visible for comparison without fighting the estimator.
         self.declare_parameter("gt_owns_base_link", True)
         self.declare_parameter("path_max_poses", 5000)
+        # Stamp everything from AirSim's clock rather than the node's. See _stamp:
+        # sensor payloads carry a sim timestamp and TF does not, so mixing the two
+        # is what silently breaks every downstream tf2_ros::MessageFilter. Set
+        # False to put the whole node on wall time instead (self-consistent too,
+        # but then IMU dt no longer reflects sim time, which matters whenever the
+        # sim is not running at 1x).
+        self.declare_parameter("use_airsim_time", True)
         # Spawn offset in world NED, from settings.json. Left at NaN it is looked
         # up from swarm_comms.SPAWNS, which is the same table settings.json uses.
         self.declare_parameter("spawn_x", float("nan"))
@@ -96,6 +103,10 @@ class AirSimBridge(Node):
         self.enable_gps: bool = g("enable_gps")
         self.gt_owns_base_link: bool = g("gt_owns_base_link")
         self.path_max: int = int(g("path_max_poses"))
+        self.use_airsim_time: bool = g("use_airsim_time")
+        # sim_clock - node_clock, in ns. Refreshed by every sensor read; 0 until
+        # the first one arrives, which degrades _stamp() to plain wall time.
+        self._clock_offset_ns: int = 0
 
         self._cfg = self._load_rig_config()
 
@@ -227,7 +238,10 @@ class AirSimBridge(Node):
     def _publish_static_transforms(self) -> None:
         """Sensor mounts (constant) and ``map -> odom`` (this run's calibration)."""
         f, cfg = self.frames, self._cfg
-        now = self.get_clock().now().to_msg()
+        # tf2 treats static transforms as valid at every time and ignores this
+        # stamp, so it is not load-bearing -- but route it through _stamp() anyway
+        # so there is exactly one place in this node that decides what time is.
+        now = self._stamp()
         out = []
 
         # map -> odom: the spawn offset, converted NED -> ENU. Orientation is
@@ -275,17 +289,48 @@ class AirSimBridge(Node):
     # -- time --------------------------------------------------------------
 
     def _stamp(self, sim_time_ns=None):
-        """Prefer AirSim's own clock; fall back to the node's.
+        """One clock for everything this node publishes: AirSim's.
 
-        Sim timestamps are what make a live run and a replayed rosbag line up,
-        so they are used whenever the sensor provides one.
+        Sensor payloads carry a sim timestamp; TF and odometry do not. Stamping
+        the first from AirSim's clock and the second from the node's is a silent,
+        total failure whenever the sim is not running at 1x wall speed -- and with
+        four drones it routinely runs at ~0.5x. The sensor stamps then fall further
+        and further behind the TF cache, and every consumer built on
+        ``tf2_ros::MessageFilter`` (octomap_server, rtabmap, icp_odometry) drops
+        100% of messages with only an INFO line to show for it. That is exactly
+        what ``cooperative_mapping.launch.py`` was doing: 46 of 46 clouds dropped
+        for 'the timestamp on the message is earlier than all the data in the
+        transform cache', an empty octree, and no error anywhere.
+
+        So: readings that come with a sim timestamp use it *and* record the
+        sim-minus-node offset; readings that do not (odometry, TF) project the
+        node clock through that offset. Projecting rather than reusing the last
+        cached sim stamp is deliberate -- TF is published faster than the sensors
+        that source the offset, and reusing a cached value would emit repeated
+        identical stamps on a moving transform, which tf2 cannot interpolate.
+
+        The projection over-runs the true sim clock slightly between refreshes
+        (it advances at wall rate, the sim does not), so a refresh can step the
+        stamp back by up to (1 - rate) x the sensor period -- ~5 ms at 100 Hz IMU.
+        tf2 sorts out-of-order inserts, and this is far below the LiDAR period, so
+        it is harmless; keeping TF marginally *ahead* of the sensor data is in any
+        case what MessageFilter wants, since it interpolates but will not
+        extrapolate.
         """
         from builtin_interfaces.msg import Time
 
-        if sim_time_ns:
+        now_ns = self.get_clock().now().nanoseconds
+        if not self.use_airsim_time:
+            ns = now_ns
+        elif sim_time_ns:
             ns = int(sim_time_ns)
-            return Time(sec=ns // 1_000_000_000, nanosec=ns % 1_000_000_000)
-        return self.get_clock().now().to_msg()
+            self._clock_offset_ns = ns - now_ns
+        else:
+            ns = now_ns + self._clock_offset_ns
+        # builtin_interfaces/Time is unsigned; a sim clock based at 0 rather than
+        # the epoch would otherwise produce a negative stamp here.
+        ns = max(0, ns)
+        return Time(sec=ns // 1_000_000_000, nanosec=ns % 1_000_000_000)
 
     def _guard(self, what: str, exc: Exception) -> None:
         """Log an RPC failure once per kind, then keep going.

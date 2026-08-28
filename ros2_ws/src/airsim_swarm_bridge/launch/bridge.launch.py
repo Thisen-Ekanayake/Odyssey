@@ -31,8 +31,15 @@ def _launch_setup(context, *args, **kwargs):
         "port": int(cfg("port")),
         "enable_stereo": truthy(cfg("stereo")),
         "enable_lidar": truthy(cfg("lidar")),
+        "enable_gps": truthy(cfg("gps")),
         "gt_owns_base_link": truthy(cfg("gt_owns_base_link")),
     }
+    # Rates default to "" meaning "whatever drones.yaml says", so the common case
+    # keeps its single source of truth and only callers that care override.
+    for name, param in (("imu_rate", "imu_rate"), ("odom_rate", "odom_rate"),
+                        ("lidar_rate", "lidar_rate")):
+        if cfg(name):
+            overrides[param] = float(cfg(name))
 
     nodes = []
     for d in drones:
@@ -80,6 +87,16 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument("stereo", default_value="true",
                               description="publish stereo images (the expensive RPC)"),
         DeclareLaunchArgument("lidar", default_value="true"),
+        DeclareLaunchArgument("gps", default_value="true"),
+        # Empty = inherit config/drones.yaml. Four drives of AirSim's RPC at
+        # 100 Hz IMU + 50 Hz odom is enough load to drag the sim clock below real
+        # time, which is not merely a framerate problem -- see bridge_node._stamp.
+        DeclareLaunchArgument("imu_rate", default_value="",
+                              description="Hz; empty inherits config/drones.yaml"),
+        DeclareLaunchArgument("odom_rate", default_value="",
+                              description="Hz; empty inherits config/drones.yaml"),
+        DeclareLaunchArgument("lidar_rate", default_value="",
+                              description="Hz; empty inherits config/drones.yaml"),
         DeclareLaunchArgument("swarm_state", default_value="true",
                               description="publish /swarm/state and formation markers"),
         DeclareLaunchArgument("maneuvers", default_value="true",

@@ -38,6 +38,8 @@ def _launch_setup(context, *args, **kwargs):
     share = get_package_share_directory(PKG)
 
     drones = [d.strip() for d in cfg("drones").split(",") if d.strip()]
+    if not drones:
+        raise RuntimeError("cooperative_mapping: 'drones' resolved to an empty list")
 
     actions = [
         IncludeLaunchDescription(
@@ -45,9 +47,18 @@ def _launch_setup(context, *args, **kwargs):
             launch_arguments={
                 "drones": cfg("drones"),
                 "host": cfg("host"), "port": cfg("port"),
-                "stereo": "false",          # a mapping demo needs LiDAR, not images
+                "stereo": cfg("stereo"),    # a mapping demo needs LiDAR, not images
                 "swarm_state": "true",      # formation markers, drawn alongside the map
                 "maneuvers": "true",        # so a maneuver can be triggered at all
+                # Four drones hammering the RPC is what drags AirSim's clock below
+                # real time, and a slow sim clock is precisely what broke this demo
+                # (see bridge_node._stamp). None of this is needed to build a map:
+                # GPS off, and IMU kept only fast enough to refresh the sim-clock
+                # offset that odom/TF are stamped from -- 20 Hz is 5x the LiDAR
+                # rate, so TF stays comfortably denser than the clouds it brackets.
+                "gps": "false",
+                "imu_rate": "20.0",
+                "odom_rate": "20.0",
             }.items(),
         ),
         Node(
@@ -58,8 +69,11 @@ def _launch_setup(context, *args, **kwargs):
         Node(
             package="octomap_server", executable="octomap_server_node", name="octomap_server",
             output="screen",
+            # base_frame_id must name a drone that is actually being bridged --
+            # config/octomap.yaml hardcodes drone1, so `drones:=Drone2,Drone3`
+            # would otherwise point octomap at a frame nobody publishes.
             parameters=[os.path.join(share, "config", "octomap.yaml"),
-                       {"frame_id": "map", "filter_ground_plane": False}],
+                        {"base_frame_id": f"{drones[0].lower()}/base_link"}],
             remappings=[("cloud_in", "/swarm/merged_points")],
         ),
     ]
@@ -73,11 +87,28 @@ def _launch_setup(context, *args, **kwargs):
     maneuver = cfg("auto_maneuver")
     if maneuver:
         delay = float(cfg("auto_maneuver_delay"))
+        # Retry rather than fire once. maneuver_node refuses to move anything
+        # until every bridge has published odometry, because each one calibrates
+        # its world offset from a stationary pose at startup -- flying early
+        # misplaces that drone on the shared map with no error. A fixed delay
+        # cannot be right for both a warm sim and a cold UE4 start (shader
+        # compilation can hold a bridge in confirmConnection for a minute), so
+        # poll until the service accepts instead of guessing.
         actions.append(TimerAction(period=delay, actions=[
-            ExecuteProcess(cmd=[
-                "ros2", "service", "call", f"/swarm/{maneuver}",
-                "airsim_swarm_msgs/srv/Maneuver", f"{{name: {maneuver}}}",
-            ], output="screen"),
+            ExecuteProcess(cmd=["bash", "-c", f"""
+                for i in $(seq 60); do
+                  out=$(ros2 service call /swarm/{maneuver} \
+                          airsim_swarm_msgs/srv/Maneuver '{{name: {maneuver}}}' 2>&1)
+                  case "$out" in
+                    *success=True*) echo "$out"; exit 0 ;;
+                  esac
+                  echo "waiting for /swarm/{maneuver} to accept ($i/60): \
+$(echo "$out" | tail -1)"
+                  sleep 2
+                done
+                echo "auto_maneuver {maneuver} never accepted; trigger it by hand" >&2
+                exit 1
+            """], output="screen"),
         ]))
     return actions
 
@@ -88,6 +119,12 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument("host", default_value="127.0.0.1"),
         DeclareLaunchArgument("port", default_value="41451"),
         DeclareLaunchArgument("rviz", default_value="true"),
+        DeclareLaunchArgument("stereo", default_value="false",
+                              description="publish stereo images too. Off by default: "
+                                          "simGetImages is the expensive RPC and a "
+                                          "slow sim clock is what breaks this demo. "
+                                          "Turn on (and enable the camera panels in "
+                                          "RViz) if you want a camera view in the clip."),
         DeclareLaunchArgument("auto_maneuver", default_value="",
                               description="e.g. 'edge_to_center' or 'converge' -- "
                                           "fired automatically after auto_maneuver_delay. "
