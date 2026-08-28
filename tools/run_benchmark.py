@@ -21,6 +21,16 @@ limitation. AirSim's weather degrades the camera stream but not the LiDAR, so:
 Reporting both means the simulator's limits are part of the finding rather than
 a hidden flaw in it.
 
+KNOWN CONFOUND -- the ``degraded`` LiDAR arm is NOT a weather ranking. Read it
+alongside docs/SLAM.md "Known limitations #2" before quoting any of it. In short:
+AirSim's LiDAR is a noiseless raycast, so ``raw`` is not "clear weather", it is a
+physically impossible sensor. The degradation model adds a baseline sensor-noise
+term on top of the weather term, and this front end has almost no noise tolerance
+(1.5 cm of range noise takes ATE from 0.24 m to 68 m), so ``degraded - raw`` is
+dominated by the arrival of noise rather than by extinction. The observable
+symptom is that the MILDEST condition diverges while the harshest does not. The
+``raw`` arm is unaffected and is the trustworthy half.
+
 Usage:
     ./airsim_venv/bin/python tools/run_benchmark.py
     ./airsim_venv/bin/python tools/run_benchmark.py --methods lidar --conditions clear
@@ -30,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime
 import json
 import sys
 import time
@@ -130,7 +141,12 @@ def run_one(dataset: Path, method: str, condition: str, degrade: bool,
     }
 
     if reference_map is not None and len(res.map_points):
-        mm = evaluate_map(res.map_points, reference_map)
+        # The map lives in the estimator's own frame; the reference is in the
+        # ground-truth world frame. Score them under the SAME rigid alignment ATE
+        # used, or the cloud-to-cloud distance is dominated by the start-pose
+        # offset rather than by map quality -- which is how a run with 0.221 m ATE
+        # came to report a 24.9 m map RMSE.
+        mm = evaluate_map(traj.align(res.map_points), reference_map)
         row.update({f"map_{k}": (round(v, 5) if isinstance(v, float) else v)
                     for k, v in mm.as_dict().items()})
 
@@ -252,7 +268,14 @@ def main() -> int:
     ap.add_argument("--datasets", type=Path, default=cfg.DATASET_ROOT)
     ap.add_argument("--out", type=Path, default=cfg.RESULTS_ROOT)
     ap.add_argument("--methods", nargs="+", default=list(METHODS), choices=METHODS)
-    ap.add_argument("--conditions", nargs="+", default=cfg.BENCHMARK_ORDER)
+    ap.add_argument("--conditions", nargs="+", default=cfg.BENCHMARK_ORDER,
+                    choices=cfg.BENCHMARK_ORDER)
+    ap.add_argument("--allow-missing", action="store_true",
+                    help="run anyway when some requested conditions have no dataset. "
+                         "Off by default: a benchmark that silently becomes a "
+                         "2-condition run still writes a metrics.csv that looks "
+                         "complete, and that is how results/ came to hold a "
+                         "2-condition, 60-frame synthetic run labelled as the study.")
     ap.add_argument("--max-frames", type=int, default=None,
                     help="truncate each dataset (quick smoke run)")
     ap.add_argument("--no-loop-closure", action="store_true")
@@ -274,11 +297,23 @@ def main() -> int:
     o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Error)
 
     available = [c for c in args.conditions if (args.datasets / c).is_dir()]
+    missing = [c for c in args.conditions if c not in available]
     if not available:
         print(f"no datasets under {args.datasets}. Run flight/record_dataset.py first.",
               file=sys.stderr)
         return 1
-    print(f"datasets: {available}")
+    print(f"datasets: {len(available)}/{len(args.conditions)} requested "
+          f"found under {args.datasets}: {available}")
+    if missing:
+        print(f"MISSING: {missing}", file=sys.stderr)
+        if not args.allow_missing:
+            print(f"refusing to run a partial benchmark. Record the missing "
+                  f"conditions (flight/record_dataset.py --condition all), pass "
+                  f"--conditions explicitly, or --allow-missing to accept a "
+                  f"partial grid.", file=sys.stderr)
+            return 1
+        print("  --allow-missing given; continuing with a PARTIAL grid",
+              file=sys.stderr)
 
     # Reference map: clear-condition scans placed by ground-truth poses, i.e.
     # the best map this sensor could build with perfect localisation.
@@ -344,6 +379,33 @@ def main() -> int:
     with open(args.out / "metrics.json", "w") as fh:
         json.dump(rows, fh, indent=2, default=str)
 
+    # Provenance sidecar rather than a header inside metrics.json, whose "list of
+    # rows" shape tools/compare_ros_slam.py depends on. The point is that a
+    # results/ directory should say what it is: which conditions were actually
+    # run, over how many frames, at which seeds. results/metrics.csv sat for
+    # weeks looking like the 5-condition study while being a 2-condition,
+    # 60-frame synthetic smoke run, and nothing on disk contradicted it.
+    manifest = {
+        "written": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+        "datasets": str(args.datasets),
+        "conditions_requested": list(args.conditions),
+        "conditions_run": available,
+        "conditions_missing": missing,
+        "methods": list(args.methods),
+        "max_frames": args.max_frames,
+        "loop_closure": not args.no_loop_closure,
+        "degraded_arm": not args.no_degraded,
+        "map_metrics": not args.no_map_metrics,
+        "stereo_ba": bool(args.stereo_ba),
+        "seed": args.seed,
+        "repeats": args.repeats,
+        "rows": len(rows),
+        "cells_failed": len(rows) - len([r for r in rows if "error" not in r]),
+        "skipped": [{"cell": t, "why": w} for t, w in skipped],
+    }
+    with open(args.out / "run_manifest.json", "w") as fh:
+        json.dump(manifest, fh, indent=2, default=str)
+
     ok = [r for r in rows if "error" not in r]
     if ok:
         make_figures(ok, args.out)
@@ -365,6 +427,24 @@ def main() -> int:
         print("\nskipped cells:")
         for tag, why in skipped:
             print(f"  {tag}: {why}")
+
+    # The degraded-LiDAR confound is easy to quote by accident: the table above
+    # looks like a weather ranking and is not one. Say so at the point where
+    # someone is actually looking at the numbers, not only in the docstring.
+    raw_ok = {r["condition"] for r in ok
+              if r["method"] == "lidar" and not r["lidar_degraded"] and not r.get("diverged")}
+    degraded_bad = sorted({r["condition"] for r in ok
+                           if r["method"] == "lidar" and r["lidar_degraded"]
+                           and r.get("diverged") and r["condition"] in raw_ok})
+    if degraded_bad:
+        print(f"\nNOTE: the degraded LiDAR arm diverged for {', '.join(degraded_bad)} while the "
+              f"raw arm did not.\n"
+              "      This is a known confound, not a weather result. AirSim's LiDAR is a noiseless\n"
+              "      raycast, so 'raw' is not clear weather -- it is a sensor that cannot exist. The\n"
+              "      degradation model adds baseline sensor noise on top of the weather term, and\n"
+              "      this front end has almost no noise tolerance (1.5 cm of range noise takes ATE\n"
+              "      from 0.24 m to 68 m), so the ordering you see is noise sensitivity rather than\n"
+              "      extinction. The raw arm is unaffected. See docs/SLAM.md, Known limitations #2.")
     return 0
 
 

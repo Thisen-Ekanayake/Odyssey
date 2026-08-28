@@ -171,6 +171,11 @@ class LidarInertialSLAM:
             self.T_sensor = T_sensor_pred
             return self.state.matrix()
 
+        # Counted here rather than on the success path, so n_frames means "frames
+        # on which registration was attempted" -- the denominator that makes
+        # tracking_failure_rate a real rate. Matches stereo_slam.process().
+        self.n_frames += 1
+
         # ---- de-skew ----
         t0 = time.perf_counter()
         points = frame.lidar.points
@@ -235,7 +240,6 @@ class LidarInertialSLAM:
         self._frame_anchor.append(anchor)
         self._frame_rel.append(rel)
 
-        self.n_frames += 1
         return self.state.matrix()
 
     def _maybe_keyframe(self, frame: Frame, points: np.ndarray,

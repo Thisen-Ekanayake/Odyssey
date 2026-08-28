@@ -58,7 +58,31 @@ STEREO_BASELINE = 0.25             # m, from the +/-0.125 Y offsets in settings.
 # half-pixel disparity error that is ~0.3 m at 10 m and ~1.3 m at 20 m, so the
 # stereo front end is trusted only out to STEREO_MAX_DEPTH. The LiDAR's 100 m
 # reach is a genuine hardware advantage, not something to engineer away.
-STEREO_MAX_DEPTH = 25.0            # m
+#
+# That reasoning is right but the value it produced (25 m) was wrong for THIS
+# route, and wrong in the expensive direction. The circuit flies at 25 m AGL with
+# a forward-facing camera, so the scene sits at ~71 m median depth. A 25 m cap
+# discards nearly all of it, leaving a median of 67 usable points per frame and
+# putting most frames under PNP_MIN_INLIERS -- instant tracking failure.
+#
+# Full route, datasets/clear, 2315 frames / 798 m, IMU on, loop closure off, seed 42:
+#
+#     cap      fails            ATE RMSE   drift   RPE %/10m
+#     25 m     1217 (52.6%)      193.18 m   39.96%     196.65
+#     60 m      120  (5.2%)       44.95 m   14.04%      29.56
+#
+# 60 m is a real optimum rather than "more is better". Over the first 274 m,
+# 120 m yields MORE points per frame (740 vs 200 median) and tracks WORSE
+# (ATE 21.2 m vs 15.0 m), because at 71 m a 0.25 m baseline gives ~1.1 px of
+# disparity in the half-res SGBM image (320*0.25/71) and those points are noise
+# wearing a depth. A 2 px-disparity floor would have predicted 40 m; that also
+# measured worse (29.5 m ATE over the same 274 m), so the measurement is what is
+# encoded here, not the derivation.
+#
+# Re-measure if route altitude, baseline, or STEREO_DEPTH_SCALE change -- all
+# three move the optimum. And note what the number still says: 14% drift over
+# 800 m is not a good result, it is an honest one. See docs/SLAM.md.
+STEREO_MAX_DEPTH = 60.0            # m
 STEREO_MIN_DEPTH = 1.0             # m
 
 # Camera *optical* frame (z forward, x right, y down) expressed in the vehicle

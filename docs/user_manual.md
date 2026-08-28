@@ -57,6 +57,21 @@ HEADLESS=1 ./scripts/run_swarm.sh
 
 The simulator renders off-screen; you still control the drones exactly the same way.
 
+### Running the four-drone demos? Use the low-resolution rig
+
+```bash
+PROFILE=swarm ./scripts/run_swarm.sh AirSimNH
+```
+
+The default (`PROFILE=slam`, `settings.json`) is the full-resolution rig the SLAM study needs.
+Four drones plus four chase cameras on it drag AirSim's clock to roughly **half real time**, which
+is worse than it sounds — the ROS bridge stamps sensor data with AirSim's clock, so a slow sim
+clock has broken the cooperative-mapping demo outright in the past. `PROFILE=swarm` uses
+`settings.swarm.json` (640×360 stereo, 100k LiDAR points/sec) and keeps the sim responsive.
+
+The rule of thumb: **`slam` for anything that records or measures, `swarm` for anything you watch.**
+The script prints which profile it mounted.
+
 ---
 
 ## 2. Fly the swarm (Terminal B)
@@ -103,6 +118,13 @@ docker rm -f <name-or-id>
 ## 4. Customize the swarm
 
 ### Change the number of drones
+
+> There are **two** rig files and they must be kept in step: `settings.json` (the SLAM rig,
+> 1280×720 stereo / 300k pts-per-sec, the default) and `settings.swarm.json` (640×360 / 100k, the
+> low-resolution rig the four-drone demos use, selected with
+> `PROFILE=swarm ./scripts/run_swarm.sh`). Add or move a vehicle in one and you must do the same in
+> the other, or the two profiles will spawn different swarms.
+
 1. Edit `settings.json` — add/remove vehicles under `"Vehicles"`. Give each a unique
    name and spawn position (`X`/`Y` in meters) so they don't overlap:
    ```json
@@ -112,11 +134,12 @@ docker rm -f <name-or-id>
      "X": 0, "Y": 12, "Z": 0, "Yaw": 0
    }
    ```
-2. Edit `swarm/swarm_demo.py` — add the same name to the `DRONES` list:
+2. Make the same edit in `settings.swarm.json`.
+3. Edit `swarm/swarm_demo.py` — add the same name to the `DRONES` list:
    ```python
    DRONES = ["Drone1", "Drone2", "Drone3", "Drone4"]
    ```
-3. Restart the simulator (Terminal A) for `settings.json` changes to take effect.
+4. Restart the simulator (Terminal A) for `settings.json` changes to take effect.
 
 ### Write your own flight logic
 Copy `swarm/swarm_demo.py` and use the AirSim Python API. Core calls:

@@ -73,10 +73,34 @@ has the full technical detail: exact sensor rig, coordinate frame gotchas, and c
 
 ## Verified working
 
-Headless, end-to-end: multiple drones armed, flew a formation, and landed. LiDAR-inertial and
-stereo-inertial SLAM both tracked a closed-loop circuit with sub-meter ATE before loop closure; see
-`docs/SLAM.md` for the numbers and for the one known-unstable piece (loop closure itself, currently
-stochastic across RANSAC seeds).
+Headless, end-to-end: multiple drones armed, flew a formation, and landed.
+
+The SLAM benchmark runs the full grid — 5 weather conditions × {LiDAR-inertial, stereo-inertial} ×
+{raw, modelled-degradation} — over the real AirSimNH recordings, ~800 m per flight. Odometry only,
+no loop closure:
+
+| condition | LiDAR-inertial ATE | stereo-inertial ATE |
+|---|---|---|
+| clear | **0.430 m** (0.07 % drift) | 44.9 m |
+| rain_light | **0.430 m** | 28.1 m |
+| rain_heavy | **0.505 m** | 35.8 m |
+| fog_light | **0.476 m** | 663 m |
+| fog_heavy | **0.456 m** | 16 410 m |
+
+That table is the whole argument. The LiDAR column is flat because AirSim's LiDAR is a raycast and
+fog has no collision geometry — the spread is trajectory variation between five flights, not
+weather. The stereo column collapses because the cameras genuinely do see the fog. Reporting only
+the first column would have concluded "LiDAR is weather-proof", which is a fact about the simulator.
+
+Scored against `rtabmap_ros` on identical bytes through identical evaluation code, `slam/` gets
+0.430 m where rtabmap gets 3.455 m — though their *local* accuracy is nearly the same (3.25 vs
+3.67 %/10 m), so that gap is accumulated global drift, not a verdict on either library.
+
+`docs/SLAM.md` has the full numbers, the degradation model, and three things this run exposed that
+are worth knowing before trusting any of it: loop closure is stochastic across RANSAC seeds, the
+stereo rig's 0.25 m baseline is not a survey instrument at 25 m altitude, and the LiDAR front end
+has **essentially zero range-noise tolerance** — 1.5 cm breaks it, which is below any real sensor's
+noise floor.
 
 ## ROS 2
 
@@ -91,6 +115,17 @@ distrobox enter ros2 -- /ml/airsim_swarm/scripts/ros_setup.sh   # one-time
 ./scripts/run_swarm.sh AirSimNH                                  # terminal 1
 ./scripts/ros_enter.sh ros2 launch airsim_swarm_bridge bridge.launch.py
 ./scripts/ros_enter.sh ros2 launch airsim_swarm_bridge viz.launch.py
+
+# live 4-drone cooperative mapping (all 4 LiDARs merged into one shared octomap).
+# PROFILE=swarm is the low-resolution rig -- four drones on the full SLAM rig drag
+# AirSim's clock to ~0.5x real time, and since the bridge stamps sensors from that
+# clock, a slow sim clock is a correctness problem and not just a framerate one:
+PROFILE=swarm ./scripts/run_swarm.sh AirSimNH                    # terminal 1
+./scripts/ros_enter.sh ros2 launch airsim_swarm_bridge cooperative_mapping.launch.py \
+    auto_maneuver:=edge_to_center
+
+# all offline ROS checks (5 suites, 107 assertions -- no simulator needed):
+./ros2_ws/src/airsim_swarm_bridge/test/run_tests.sh
 ```
 
 See [docs/ROS.md](docs/ROS.md) for the frame conventions, the SLAM comparison

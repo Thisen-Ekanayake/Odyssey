@@ -145,6 +145,98 @@ one slow camera would otherwise stall the whole swarm.
 
 ---
 
+## Cooperative mapping (demo)
+
+```bash
+PROFILE=swarm ./scripts/run_swarm.sh AirSimNH        # terminal 1 -- note the profile
+./scripts/ros_enter.sh ros2 launch airsim_swarm_bridge cooperative_mapping.launch.py
+# or, one command that also flies a maneuver a few seconds after startup:
+./scripts/ros_enter.sh ros2 launch airsim_swarm_bridge cooperative_mapping.launch.py \
+    auto_maneuver:=edge_to_center
+```
+
+Merges all four drones' LiDAR into one shared `octomap_server` instance and shows
+it live in RViz alongside the four colour-coded raw clouds and the formation
+markers -- the "4 drones building one map together" shot.
+
+`PROFILE=swarm` matters: four drones on the full-resolution SLAM rig drag AirSim's
+clock to roughly half real time, and while that reads as a framerate problem it is
+not only one -- see "One clock, or no map" below.
+
+`cloud_merger_node` is a pure **relay**, not a transform: it republishes each
+drone's cloud unchanged, keeping its own `droneN/lidar_link` frame id.
+`octomap_server` does its own per-message TF lookup and uses the resulting
+transform's translation as the ray-tracing sensor origin (confirmed against the
+installed binary -- it links `tf2_ros::MessageFilter<PointCloud2>` and
+`pcl_ros::transformPointCloud`, the standard octomap_server pattern). Four
+independently-posed frame ids arriving on one topic is no different to it than
+one frame moving over time, so no cross-drone synchronisation is needed either.
+`test_cooperative_mapping.py` checks this by geometry rather than by eye: occupied
+voxels must cluster around each drone's true world position and not near the map
+origin, using deliberately asymmetric spawns so an X/Y swap cannot hide.
+
+### One clock, or no map
+
+The single most important invariant here, and the one that broke it: **TF and
+sensor data must be stamped from the same clock.**
+
+AirSim runs a `SteppableClock` for SimpleFlight multirotors, and with four drones
+loaded it advances at roughly 0.5x wall time. Sensor payloads carry that clock in
+`time_stamp`; TF and odometry carry nothing, so an earlier `bridge_node` stamped
+them from the node's wall clock instead. The two then drift apart without bound.
+Every consumer built on `tf2_ros::MessageFilter` -- `octomap_server`,
+`icp_odometry`, `rtabmap` -- silently discarded 100% of clouds:
+
+```
+[INFO] [octomap_server]: Message Filter dropping message: frame 'drone3/lidar_link'
+  at time 1787427030.511 for reason 'the timestamp on the message is earlier than
+  all the data in the transform cache'
+```
+
+That is an INFO line. There is no error, no crash, and RViz opens normally -- the
+map is simply always empty. `bridge_node._stamp` now projects the node clock
+through a continuously-updated sim-minus-wall offset, so odometry and TF share
+AirSim's timeline with the sensors. `use_airsim_time:=false` puts the whole node
+on wall time instead, which is also self-consistent, at the cost of IMU dt no
+longer meaning sim time.
+
+The reason this survived so long is worth recording: the test suite passed
+throughout. `mock_airsim_server.py` stamped its "sim clock" with `time.time()`,
+so under test the two clocks agreed by construction and the bug was invisible.
+The mock now takes `--clock-rate` / `--clock-skew`, and `run_tests.sh` runs the
+mapping suite at `--clock-rate 0.5 --clock-skew -30` with 16k-point sweeps. Put
+the old `_stamp` back and that suite fails with "no message in 45s".
+
+### RViz cannot display an octomap on this machine
+
+`ros-jazzy-octomap-rviz-plugins` ships a `liboctomap_rviz_plugins.so` that does
+not link `liboctomap`, so RViz fails to load it:
+
+```
+PluginlibFactory: The plugin for class 'octomap_rviz_plugins/OccupancyGrid' failed
+to load. ... undefined symbol: _ZTIN7octomap13OcTreeStampedE
+```
+
+`swarm_live.rviz` therefore draws the shared map from
+`/octomap_point_cloud_centers` -- the occupied-voxel centres octomap_server
+publishes anyway -- with a stock `rviz_default_plugins/PointCloud2` in `Boxes`
+style at the octomap resolution. It looks the same, drops a package from the
+critical path, and shows the exact topic the test asserts on. If you want the real
+plugin, `LD_PRELOAD` the system `liboctomap.so` into `rviz2`.
+
+`test_rviz_config.py` now dlopens every display class named in `rviz/*.rviz`, so a
+config referring to a plugin this machine cannot load fails offline in
+milliseconds rather than silently showing nothing during a demo.
+
+This is cooperative **mapping**, not cooperative SLAM: poses come from ground
+truth (`gt_owns_base_link` stays true, since no SLAM node here needs the
+`odom -> base_link` edge). For "how well would N independently-estimated poses
+agree on one map", each drone needs its own SLAM front end -- a harder,
+different exercise from placing four known-good poses into one map.
+
+Recording it: `tools/window_recorder.py` captures the RViz window exactly as it
+does AirSim's own; `tools/to_gif.sh` turns the capture into a shareable clip.
+
 ## SLAM
 
 ```bash
@@ -194,6 +286,27 @@ the comparison would mean nothing.
 Alignment is on by default: odometry starts at its own origin, not at the
 world position.
 
+Result on `clear`, both estimators over the full 798 m circuit, identical recorded
+bytes, identical scoring code:
+
+| estimator | ATE RMSE | RPE %/10 m | drift |
+|---|---|---|---|
+| `ros:rtabmap` (icp_odometry + loop closure) | 3.455 m | 3.67 | 0.64 % |
+| `py:lidar` (`slam/`, odometry only) | **0.430 m** | 3.25 | 0.07 % |
+| `py:stereo` (`slam/`, odometry only) | 44.948 m | 29.56 | 14.04 % |
+
+Read the RPE column alongside the ATE. The two LiDAR estimators have almost the
+same *local* accuracy (3.67 vs 3.25 %/10 m) — they disagree by 8× on ATE, which is
+accumulated global drift, and rtabmap is carrying loop closure while `slam/` here
+is not. This is a comparison of two configurations, not a verdict on two
+libraries.
+
+Do **not** compare against `results/metrics.json` rows produced with
+`--max-frames`. ATE is an absolute distance and does not normalise by path length;
+`compare_ros_slam.py` prints a loud warning when the two sides differ by more than
+2× in trajectory length, which is exactly the state `results/` was in before the
+full grid was run.
+
 ### Weather
 
 **AirSim weather is a rendering effect only.** The camera streams in a `rain_*` /
@@ -222,7 +335,18 @@ half is which. Never report a weather comparison without saying so.
 | `…/swarm_state_node.py` | `/swarm/state` + formation markers |
 | `…/maneuver_node.py` | `/swarm/*` services wrapping the `swarm/` manoeuvres |
 | `…/traj_recorder_node.py` | odometry topic → TUM file |
+| `…/cloud_merger_node.py` | relays every drone's LiDAR onto one topic for a shared octomap |
 | `…/dataset_to_rosbag.py` | `datasets/<condition>/` → rosbag2 |
+| `…/launch/` | `bridge`, `cooperative_mapping`, `slam_lidar`, `slam_replay`, `slam_2d`, `viz` |
+| `…/rviz/` | `swarm_live.rviz` (4-drone + shared map), `slam_single.rviz` (rtabmap) |
+| `…/config/` | `drones.yaml`, `octomap.yaml`, `rtabmap_lidar.yaml`, `ekf.yaml` |
+| `…/test/run_tests.sh` | all five offline suites, 107 assertions, no simulator |
+| `…/test/mock_airsim_server.py` | reference msgpack-rpc server; **host venv only** (tornado). `--clock-rate`/`--clock-skew`/`--points-per-sweep` make it misbehave like the real sim |
+| `…/test/test_frames.py` | NED/FRD ↔ ENU/FLU, incl. 500 random rotations |
+| `…/test/test_rpc_roundtrip.py` | wire compatibility, host server ↔ container client |
+| `…/test/test_swarm_reuse.py` | `swarm/` manoeuvres running unmodified through the shim |
+| `…/test/test_rviz_config.py` | dlopens every display class named in `rviz/*.rviz` |
+| `…/test/test_cooperative_mapping.py` | 4-drone octomap geometry, under a skewed sim clock |
 | `tools/compare_ros_slam.py` | **host-side**; scores ROS estimates with `slam/evaluate.py` |
 
 ---

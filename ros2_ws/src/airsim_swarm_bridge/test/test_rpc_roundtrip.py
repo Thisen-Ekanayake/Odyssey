@@ -83,7 +83,12 @@ def main() -> int:
 
     lid = c.getLidarData("LidarSensor1", "Drone1")
     check("point_cloud stays a flat list", isinstance(lid.point_cloud, list))
-    check("point_cloud length is a multiple of 3", len(lid.point_cloud) == 1080,
+    # The wire property is that a flat float list survives as triples -- not that
+    # the mock happens to emit 360 returns. It is configurable now
+    # (--points-per-sweep), so asserting the count would just couple this to the
+    # mock's geometry.
+    check("point_cloud length is a multiple of 3",
+          len(lid.point_cloud) > 0 and len(lid.point_cloud) % 3 == 0,
           f"got {len(lid.point_cloud)}")
     check("point_cloud elements are numbers, NOT Structs",
           all(isinstance(v, float) for v in lid.point_cloud[:9]))
