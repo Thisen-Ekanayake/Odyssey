@@ -26,7 +26,7 @@ real error, not a gauge freedom to be quotiented out.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 import numpy as np
 
@@ -55,8 +55,25 @@ class TrajectoryMetrics:
     scale_estimate: float = float("nan")        # diagnostic; should be ~1.0
     diverged: bool = False
 
+    # The rigid alignment ATE was measured under: gt_frame_point = R @ est + t.
+    # Kept so a map built in the estimator's frame can be scored in the same one
+    # -- without it, cloud-to-cloud distance measures the start-pose offset
+    # rather than map quality, and a 0.221 m-ATE run scored 24.9 m.
+    align_R: np.ndarray = field(default_factory=lambda: np.eye(3), repr=False)
+    align_t: np.ndarray = field(default_factory=lambda: np.zeros(3), repr=False)
+
+    # Not annotated, so not a dataclass field: a 3x3 has no place in a metrics CSV.
+    _NOT_SERIALISED = ("align_R", "align_t")
+
     def as_dict(self) -> dict:
-        return asdict(self)
+        return {k: v for k, v in asdict(self).items() if k not in self._NOT_SERIALISED}
+
+    def align(self, points: np.ndarray) -> np.ndarray:
+        """Map estimator-frame points into the ground-truth frame."""
+        pts = np.asarray(points, dtype=np.float64)
+        if not len(pts):
+            return pts
+        return pts @ self.align_R.T + self.align_t
 
     def summary(self) -> str:
         if self.diverged:
@@ -142,6 +159,7 @@ def evaluate_trajectory(est_t, est_T, gt_t, gt_T,
     if align:
         R, tr, _ = umeyama(p_est, p_gt, with_scale=False)
         aligned = p_est @ R.T + tr
+        m.align_R, m.align_t = R, tr
         # Scale is measured separately as a diagnostic, never applied.
         _, _, m.scale_estimate = umeyama(p_est, p_gt, with_scale=True)
     else:

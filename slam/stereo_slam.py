@@ -278,6 +278,13 @@ class StereoInertialSLAM:
             self.T_cam = T_cam_pred
             return self.state.matrix()
 
+        # Counted here, not on the success path at the end: n_failures is
+        # incremented on two early returns below, so counting only successes made
+        # tracking_failure_rate a ratio of different denominators and it could
+        # exceed 1. A real run reported "154.0%". n_frames now means "frames on
+        # which tracking was attempted", which is the denominator the rate needs.
+        self.n_frames += 1
+
         t0 = time.perf_counter()
         uv, desc, pts3d = self._features_with_depth(frame.stereo)
         self.timer.add("features", time.perf_counter() - t0)
@@ -316,7 +323,6 @@ class StereoInertialSLAM:
 
         new_kf = self._maybe_keyframe(frame, uv, desc, pts3d, T_cam_est, n_inliers)
         self._record_frame(frame, T_cam_est, new_kf)
-        self.n_frames += 1
         return self.state.matrix()
 
     def _record_frame(self, frame: Frame, T_cam: np.ndarray, new_kf: int | None) -> None:
