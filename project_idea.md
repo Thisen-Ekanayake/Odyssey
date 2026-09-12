@@ -1,0 +1,1 @@
+take off a drone from one corner of the env and goes to the all corners and cover the entire env, map it using segment cameras and lidars. then make a 3d panoptic segmented map. then spawn a car on a road and using that segmented 3d map, let it drive through the map without coliding into other objects or without moving out from the road.

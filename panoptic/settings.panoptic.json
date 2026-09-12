@@ -1,0 +1,63 @@
+{
+  "SeeDocsAt": "https://github.com/Microsoft/AirSim/blob/main/docs/settings_json.md",
+  "SettingsVersion": 1.2,
+  "SimMode": "Multirotor",
+  "ClockSpeed": 1.0,
+  "ViewMode": "SpringArmChase",
+  "CameraDefaults": {
+    "CaptureSettings": [
+      { "ImageType": 0, "Width": 640, "Height": 480, "FOV_Degrees": 90 }
+    ]
+  },
+  "ExternalCameras": {
+    "CarCam": {
+      "X": 0, "Y": 0, "Z": -3,
+      "Pitch": -15, "Roll": 0, "Yaw": 0,
+      "CaptureSettings": [
+        { "ImageType": 0, "Width": 960, "Height": 540, "FOV_Degrees": 90 }
+      ]
+    }
+  },
+  "Vehicles": {
+    "Drone1": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "AutoCreate": true,
+      "X": 0, "Y": 0, "Z": 0, "Yaw": 0,
+
+      "Cameras": {
+        "Nadir": {
+          "X": 0.0, "Y": 0.0, "Z": 0.15,
+          "Pitch": -90, "Roll": 0, "Yaw": 0,
+          "CaptureSettings": [
+            { "ImageType": 0, "Width": 640, "Height": 480, "FOV_Degrees": 90 },
+            { "ImageType": 1, "Width": 640, "Height": 480, "FOV_Degrees": 90 },
+            { "ImageType": 5, "Width": 640, "Height": 480, "FOV_Degrees": 90 }
+          ]
+        }
+      },
+
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 32,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 300000,
+          "Range": 120,
+          "HorizontalFOVStart": -180,
+          "HorizontalFOVEnd": 180,
+          "VerticalFOVUpper": 0,
+          "VerticalFOVLower": -80,
+          "X": 0, "Y": 0, "Z": -0.1,
+          "Roll": 0, "Pitch": 0, "Yaw": 0,
+          "DrawDebugPoints": false,
+          "DataFrame": "SensorLocalFrame"
+        },
+        "Gps": { "SensorType": 3, "Enabled": true }
+      }
+    }
+  }
+}

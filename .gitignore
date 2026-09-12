@@ -13,6 +13,9 @@ logs/
 datasets/
 datasets_synth/
 datasets_square/
+# panoptic/capture.py recordings + fused maps, and the measured segmentation palette
+datasets_panoptic/
+panoptic/palette_cache.json
 results/
 
 # per-run window captures + rendered videos from tools/window_recorder.py

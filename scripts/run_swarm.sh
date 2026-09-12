@@ -5,7 +5,9 @@
 #   HEADLESS=1 ./scripts/run_swarm.sh      # off-screen render, control via API only
 #   ENV_NAME=AirSimNH ./scripts/run_swarm.sh   # env can also be set via the ENV_NAME variable
 #   PROFILE=swarm ./scripts/run_swarm.sh   # low-res rig for the multi-drone demos
+#   PROFILE=panoptic ./scripts/run_swarm.sh AirSimNH   # single drone + nadir seg/depth cam (panoptic/)
 # Any args after the env name are passed through to the UE4 binary.
+# DOCKER_TTY=-i for launching from a non-terminal (a script, a background job) -- `-it` fails there.
 #
 # PROFILE picks which rig AirSim boots with. The two are NOT interchangeable and
 # the difference is load-bearing, not cosmetic:
@@ -32,7 +34,8 @@ PROFILE="${PROFILE:-slam}"
 case "$PROFILE" in
   slam)  SETTINGS="$WORKDIR/settings.json" ;;
   swarm) SETTINGS="$WORKDIR/settings.swarm.json" ;;
-  *)     echo "ERROR: PROFILE must be 'slam' or 'swarm' (got '$PROFILE')." >&2; exit 1 ;;
+  panoptic) SETTINGS="$WORKDIR/panoptic/settings.panoptic.json" ;;   # see panoptic/README.md
+  *)     echo "ERROR: PROFILE must be 'slam', 'swarm' or 'panoptic' (got '$PROFILE')." >&2; exit 1 ;;
 esac
 [[ -f "$SETTINGS" ]] || { echo "ERROR: $SETTINGS not found." >&2; exit 1; }
 
@@ -71,7 +74,7 @@ echo "Environment:            $ENV_NAME"
 echo "Env dir (host):         $ENV_DIR"
 echo "Settings (host):        $SETTINGS  [PROFILE=$PROFILE]"
 
-docker run --rm -it \
+docker run --rm ${DOCKER_TTY:--it} \
   --runtime=nvidia \
   -e NVIDIA_VISIBLE_DEVICES=all \
   -e NVIDIA_DRIVER_CAPABILITIES=all \
