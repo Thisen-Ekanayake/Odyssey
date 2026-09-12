@@ -67,7 +67,7 @@ Visualization Manager:
       Reliability Policy: Reliable
       History Policy: Keep Last
       Filter size: 10
-    Style: Boxes
+    Style: Points
     Size (m): 0.5
     Alpha: 0.9
     Decay Time: 0
@@ -122,7 +122,7 @@ Visualization Manager:
     Max Color: 255; 255; 255
   - Class: rviz_default_plugins/PointCloud2
     Name: drone1 lidar
-    Enabled: true
+    Enabled: false
     Topic:
       Value: /drone1/lidar/points
       Depth: 5
@@ -147,7 +147,7 @@ Visualization Manager:
     Max Color: 255; 255; 255
   - Class: rviz_default_plugins/PointCloud2
     Name: drone2 lidar
-    Enabled: true
+    Enabled: false
     Topic:
       Value: /drone2/lidar/points
       Depth: 5
@@ -172,7 +172,7 @@ Visualization Manager:
     Max Color: 255; 255; 255
   - Class: rviz_default_plugins/PointCloud2
     Name: drone3 lidar
-    Enabled: true
+    Enabled: false
     Topic:
       Value: /drone3/lidar/points
       Depth: 5
@@ -197,7 +197,7 @@ Visualization Manager:
     Max Color: 255; 255; 255
   - Class: rviz_default_plugins/PointCloud2
     Name: drone4 lidar
-    Enabled: true
+    Enabled: false
     Topic:
       Value: /drone4/lidar/points
       Depth: 5
